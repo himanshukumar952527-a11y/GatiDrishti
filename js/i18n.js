@@ -6,12 +6,15 @@
 
 const TRANSLATIONS = {
   en: {
-    brandTitle: "Indian Railways",
-    brandSubtitle: "Dynamic ETA Forecast",
+    brandTitle: "GatiDrishti",
+    brandSubtitle: "Connecting India, On Time.",
     navNTES: "NTES",
     navIRCTC: "IRCTC",
     navRailMadad: "Rail Madad",
     navHelp: "Help",
+    helplineCall: "Call 139",
+    helplineSub: "for security/medical assistance",
+    heroKicker: "Dynamic ETA Forecast",
     heroTitle: "Know exactly when your train will arrive",
     heroSubtitle: "Live, self-updating ETA predictions for coaching trains — powered by real-time location, signalling and historical running data.",
     searchPlaceholder: "Enter Train No. or Name (e.g., 12951, Rajdhani Express)",
@@ -61,12 +64,15 @@ const TRANSLATIONS = {
   },
 
   hi: {
-    brandTitle: "भारतीय रेल",
-    brandSubtitle: "डायनामिक ETA पूर्वानुमान",
+    brandTitle: "गतिदृष्टि",
+    brandSubtitle: "कनेक्टिंग इंडिया, ऑन टाइम।",
     navNTES: "एनटीईएस",
     navIRCTC: "आईआरसीटीसी",
     navRailMadad: "रेल मदद",
     navHelp: "सहायता",
+    helplineCall: "139 पर कॉल करें",
+    helplineSub: "सुरक्षा/चिकित्सा सहायता के लिए",
+    heroKicker: "डायनामिक ETA पूर्वानुमान",
     heroTitle: "जानिए आपकी ट्रेन कब पहुँचेगी",
     heroSubtitle: "कोचिंग ट्रेनों के लिए लाइव, स्वतः-अपडेट होने वाला ETA पूर्वानुमान — रीयल-टाइम लोकेशन, सिग्नलिंग और ऐतिहासिक डेटा पर आधारित।",
     searchPlaceholder: "ट्रेन नंबर या नाम दर्ज करें (जैसे, 12951, राजधानी एक्सप्रेस)",
@@ -116,12 +122,15 @@ const TRANSLATIONS = {
   },
 
   bn: {
-    brandTitle: "ভারতীয় রেল",
-    brandSubtitle: "ডাইনামিক ETA পূর্বাভাস",
+    brandTitle: "গতিদৃষ্টি",
+    brandSubtitle: "কানেক্টিং ইন্ডিয়া, অন টাইম।",
     navNTES: "এনটিইএস",
     navIRCTC: "আইআরসিটিসি",
     navRailMadad: "রেল মদদ",
     navHelp: "সহায়তা",
+    helplineCall: "139 নম্বরে কল করুন",
+    helplineSub: "সুরক্ষা/চিকিৎসা সহায়তার জন্য",
+    heroKicker: "ডাইনামিক ETA পূর্বাভাস",
     heroTitle: "জেনে নিন আপনার ট্রেন কখন পৌঁছাবে",
     heroSubtitle: "কোচিং ট্রেনের জন্য লাইভ, স্বয়ংক্রিয়ভাবে আপডেট হওয়া ETA পূর্বাভাস — রিয়েল-টাইম অবস্থান, সিগন্যালিং ও ঐতিহাসিক তথ্যের উপর ভিত্তি করে।",
     searchPlaceholder: "ট্রেন নম্বর বা নাম লিখুন (যেমন, 12951, রাজধানী এক্সপ্রেস)",

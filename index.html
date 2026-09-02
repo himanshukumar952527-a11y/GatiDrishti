@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dynamic ETA Forecast | Indian Railways</title>
+  <title>GatiDrishti | Dynamic ETA Forecast</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@500;600&family=Noto+Sans+Bengali:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css" />
@@ -14,19 +14,35 @@
   <header class="site-header">
     <div class="header-inner">
       <div class="brand">
-        <div class="brand-icon">🚆</div>
+        <!-- SVG logo mark: uses CSS variables (currentColor / var(--ir-red) etc.)
+             so it automatically adapts to light/dark theme. No separate
+             day/night image files needed — see the customization guide
+             if you replace this with a designer-made logo. -->
+        <div class="brand-icon logo-mark" aria-hidden="true">
+          <img src="assets/logo-light.png" alt="GatiDrishti logo" style = "margin-right: 30px;" class="logo-img logo-light" />
+<img src="assets/logo-dark.png" alt="GatiDrishti logo" class="logo-img logo-dark" />
+        </div>
         <div class="brand-text">
-          <span class="brand-title" data-i18n="brandTitle">Indian Railways</span>
-          <span class="brand-subtitle" data-i18n="brandSubtitle">Dynamic ETA Forecast</span>
+          <span class="brand-title" data-i18n="brandTitle">GatiDrishti</span>
+          <span class="brand-subtitle" data-i18n="brandSubtitle">Connecting India, On Time.</span>
         </div>
       </div>
 
       <div class="header-right">
         <nav class="header-links">
-          <a href="https://enquiry.indianrail.gov.in/mntes/" data-i18n="navNTES">NTES</a>
-          <a href="https://www.irctc.co.in/nget/train-search" data-i18n="navIRCTC">IRCTC</a>
-          <a href="https://railmadad.indianrailways.gov.in/madad/final/home.jsp" data-i18n="navRailMadad">Rail Madad</a>
+          <a href="#" data-i18n="navNTES">NTES</a>
+          <a href="#" data-i18n="navIRCTC">IRCTC</a>
+          <a href="#" data-i18n="navRailMadad">Rail Madad</a>
         </nav>
+
+        <!-- Emergency helpline button -->
+        <a href="tel:139" class="helpline-btn" aria-label="Call 139 for security or medical assistance">
+          <span class="helpline-icon">📞</span>
+          <span class="helpline-text">
+            <span class="helpline-number" data-i18n="helplineCall">Call 139</span>
+            <span class="helpline-sub" data-i18n="helplineSub">for security/medical assistance</span>
+          </span>
+        </a>
 
         <!-- Language Switch -->
         <div class="lang-switch">
@@ -56,6 +72,7 @@
   <section class="hero-section">
     <div class="hero-bg" aria-hidden="true"></div>
     <div class="hero-content">
+      <span class="hero-kicker" data-i18n="heroKicker">Dynamic ETA Forecast</span>
       <h1 class="hero-title" data-i18n="heroTitle">Know exactly when your train will arrive</h1>
       <p class="hero-subtitle" data-i18n="heroSubtitle">
         Live, self-updating ETA predictions for coaching trains — powered by real-time
@@ -126,8 +143,15 @@
     <div class="footer-inner">
       <div class="footer-col">
         <div class="footer-brand">
-          <span class="brand-icon small">🚆</span>
-          <span data-i18n="brandSubtitle">Dynamic ETA Forecast</span>
+          <span class="brand-icon small logo-mark">
+            <svg viewBox="0 0 48 48" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="24" cy="24" r="21" stroke="currentColor" stroke-width="2.5" opacity="0.5"/>
+              <path d="M9 30 C9 30 16 18 24 18 C32 18 39 30 39 30" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+              <circle cx="24" cy="18" r="3.4" fill="currentColor"/>
+              <path d="M24 21.4 L24 30" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span data-i18n="brandTitle">GatiDrishti</span>
         </div>
         <p class="footer-tag" data-i18n="footerTagline">
           A Smart India Hackathon 2026 prototype for real-time, data-driven ETA

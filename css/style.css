@@ -1,7 +1,10 @@
 /* ============================================
    VARIABLES + RESET (LIGHT THEME DEFAULT)
    ============================================ */
-
+.logo-img { height: 85px; }
+.logo-dark { display: none; }
+body[data-theme="dark"] .logo-light { display: none; }
+body[data-theme="dark"] .logo-dark { display: block; }
 :root {
   --ir-red: #C41230;
   --ir-red-dark: #9c0e26;
@@ -57,7 +60,7 @@ body {
   font-family: 'Inter', sans-serif;
   background-color: var(--page-bg);
   color: var(--text-dark);
-  line-height: 1.5;
+  line-height: 3.0;
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
@@ -102,7 +105,7 @@ button { font-family: 'Inter', sans-serif; }
 }
 
 .header-inner {
-  max-width: 1200px;
+  max-width: 1450px;
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -127,16 +130,24 @@ button { font-family: 'Inter', sans-serif; }
   flex-shrink: 0;
 }
 
+/* Logo mark: SVG uses currentColor, so setting `color` here controls the
+   stroke/fill. Background stays --ir-red in both themes for brand
+   consistency; swap this rule if you want the logo chip itself to
+   invert in dark mode. */
+.logo-mark {
+  color: var(--white);
+}
+
 .brand-icon.small { width: 32px; height: 32px; font-size: 18px; border-radius: 8px; }
 
 .brand-text { display: flex; flex-direction: column; line-height: 1.2; }
-.brand-title { font-size: 17px; font-weight: 700; color: var(--ir-blue); }
-.brand-subtitle { font-size: 12.5px; font-weight: 500; color: var(--text-muted); }
+.brand-title { font-size: 35px; font-weight: 700; color: var(--ir-blue); letter-spacing: -0.2px; }
+.brand-subtitle { font-size: 15px; font-weight: 500; color: var(--text-muted); font-style: italic; }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
@@ -149,6 +160,52 @@ button { font-family: 'Inter', sans-serif; }
 }
 
 .header-links a:hover { border-bottom-color: var(--ir-red); color: var(--ir-red); }
+
+/* ---- Emergency helpline button (CALL 139) ---- */
+
+.helpline-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFF4E5;
+  border: 1.5px solid #F2B705;
+  border-radius: 22px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.helpline-btn:hover {
+  background: #F2B705;
+  border-color: #d9a300;
+}
+
+.helpline-btn:hover .helpline-number,
+.helpline-btn:hover .helpline-sub {
+  color: #1A1A1A;
+}
+
+body[data-theme="dark"] .helpline-btn {
+  background: rgba(242, 183, 5, 0.12);
+  border-color: rgba(242, 183, 5, 0.5);
+}
+
+.helpline-icon {
+  font-size: 16px;
+  animation: ringPhone 2.2s ease-in-out infinite;
+}
+
+@keyframes ringPhone {
+  0%, 80%, 100% { transform: rotate(0deg); }
+  82% { transform: rotate(-15deg); }
+  86% { transform: rotate(12deg); }
+  90% { transform: rotate(-8deg); }
+  94% { transform: rotate(0deg); }
+}
+
+.helpline-text { display: flex; flex-direction: column; line-height: 1.15; }
+.helpline-number { font-size: 13.5px; font-weight: 700; color: var(--ir-red); }
+.helpline-sub { font-size: 10px; font-weight: 500; color: var(--text-muted); white-space: nowrap; }
 
 .help-link {
   background: var(--ir-blue);
@@ -264,7 +321,23 @@ body[data-theme="dark"] .hero-bg {
   opacity: 0.85;
 }
 
-.hero-content { position: relative; text-align: center; padding: 56px 16px 44px; max-width: 780px; margin: 0 auto; }
+.hero-content { position: relative; text-align: center; padding: 48px 16px 44px; max-width: 780px; margin: 0 auto; }
+
+.hero-kicker {
+  display: inline-block;
+  background: var(--surface);
+  border: 1.5px solid var(--border-light);
+  color: var(--ir-blue);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 6px 16px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-soft);
+}
+
 .hero-title { font-size: 32px; font-weight: 700; color: var(--ir-blue); margin-bottom: 12px; letter-spacing: -0.3px; }
 .hero-subtitle { font-size: 15.5px; color: var(--text-muted); margin-bottom: 28px; line-height: 1.6; }
 
@@ -596,6 +669,7 @@ body[data-theme="dark"] .site-footer { background: #0D1520; }
 
 .footer-inner { max-width: 1200px; margin: 0 auto; padding: 40px 24px 24px; display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 32px; }
 .footer-brand { display: flex; align-items: center; gap: 10px; font-family: 'Poppins', sans-serif; font-weight: 700; color: var(--white); font-size: 15.5px; margin-bottom: 10px; }
+.footer-brand .logo-mark { color: var(--white); }
 .footer-tag { font-size: 13px; color: #b7c8dd; line-height: 1.6; }
 .footer-col h4 { color: var(--white); font-size: 13.5px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
 .footer-col a { display: block; font-size: 13.5px; color: #b7c8dd; margin-bottom: 9px; transition: color 0.2s ease; }
@@ -628,4 +702,5 @@ body[data-theme="dark"] .site-footer { background: #0D1520; }
   .search-btn { width: 100%; margin-top: 8px; }
   .result-header { flex-direction: column; }
   .header-links { display: none; }
+  .helpline-sub { display: none; }
 }
