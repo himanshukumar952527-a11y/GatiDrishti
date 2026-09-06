@@ -6,6 +6,12 @@
   <title>GatiDrishti | Dynamic ETA Forecast</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@500;600&family=Noto+Sans+Bengali:wght@500;600&display=swap" rel="stylesheet">
+
+  <!-- Leaflet.js — free, open-source map library, no API key required.
+       Used only for the "Show on Map" modal. -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body data-theme="light">
@@ -14,14 +20,13 @@
   <header class="site-header">
     <div class="header-inner">
       <div class="brand">
-        <!-- SVG logo mark: uses CSS variables (currentColor / var(--ir-red) etc.)
-             so it automatically adapts to light/dark theme. No separate
-             day/night image files needed — see the customization guide
-             if you replace this with a designer-made logo. -->
-        <div class="brand-icon logo-mark" aria-hidden="true">
-          <img src="assets/logo-light.png" alt="GatiDrishti logo" style = "margin-right: 30px;" class="logo-img logo-light" />
-<img src="assets/logo-dark.png" alt="GatiDrishti logo" class="logo-img logo-dark" />
-        </div>
+        <!-- Logo: two <img> tags, one per theme. CSS shows/hides the
+             correct one based on data-theme on <body>. See guide
+             Section "Logos" for how this switching works and how to
+             change the paths. -->
+        <img src="assets/logo-light.png" alt="GatiDrishti logo" class="brand-logo-img logo-for-light" />
+        <img src="assets/logo-dark.png" alt="GatiDrishti logo" class="brand-logo-img logo-for-dark" />
+
         <div class="brand-text">
           <span class="brand-title" data-i18n="brandTitle">GatiDrishti</span>
           <span class="brand-subtitle" data-i18n="brandSubtitle">Connecting India, On Time.</span>
@@ -33,18 +38,18 @@
           <a href="#" data-i18n="navNTES">NTES</a>
           <a href="#" data-i18n="navIRCTC">IRCTC</a>
           <a href="#" data-i18n="navRailMadad">Rail Madad</a>
+          <a href="#" id="pnrNavLink" data-i18n="navPNR">PNR Status</a>
+          <a href="#" id="scheduleNavLink" data-i18n="navSchedule">Train Schedule</a>
         </nav>
 
-        <!-- Emergency helpline button -->
         <a href="tel:139" class="helpline-btn" aria-label="Call 139 for security or medical assistance">
           <span class="helpline-icon">📞</span>
           <span class="helpline-text">
-            <span class="helpline-number" data-i18n="helplineCall">Call 139</span>
+            <span class="helpline-number" data-i18n="helplineCall">CALL 139</span>
             <span class="helpline-sub" data-i18n="helplineSub">for security/medical assistance</span>
           </span>
         </a>
 
-        <!-- Language Switch -->
         <div class="lang-switch">
           <button class="icon-btn" id="langBtn" aria-haspopup="listbox" aria-label="Change language">
             <span class="icon-btn-symbol">🌐</span>
@@ -57,8 +62,9 @@
           </ul>
         </div>
 
-        <!-- Theme Toggle -->
         <button class="icon-btn theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
+          <!-- <span class="icon-btn-symbol">🌙</span>
+            <span id="themeCurrentLabel">Dark Theme</span> -->
           <span id="themeIcon">🌙</span>
         </button>
 
@@ -69,8 +75,12 @@
   </header>
 
   <!-- ===== HERO / SEARCH SECTION ===== -->
-  <section class="hero-section">
+  <!-- Background image: --hero-bg-image now points directly at your
+       downloaded locomotive photo. Only the photo shows — the old
+       decorative dot/chevron texture strips have been removed. -->
+  <section class="hero-section" style="--hero-bg-image: url('assets/heroBackground.png');">
     <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-overlay" aria-hidden="true"></div>
     <div class="hero-content">
       <span class="hero-kicker" data-i18n="heroKicker">Dynamic ETA Forecast</span>
       <h1 class="hero-title" data-i18n="heroTitle">Know exactly when your train will arrive</h1>
@@ -79,7 +89,13 @@
         location, signalling and historical running data.
       </p>
 
-      <form class="search-box" id="searchForm">
+      <div class="lookup-tabs" role="tablist">
+        <button class="lookup-tab active" data-tab="eta" data-i18n="tabEta">Live ETA</button>
+        <button class="lookup-tab" data-tab="pnr" data-i18n="tabPnr">PNR Status</button>
+        <button class="lookup-tab" data-tab="schedule" data-i18n="tabSchedule">Train Schedule</button>
+      </div>
+
+      <form class="search-box lookup-panel active" id="searchForm" data-panel="eta">
         <span class="search-icon">🔍</span>
         <input
           type="text"
@@ -92,7 +108,35 @@
         <button type="submit" class="search-btn" data-i18n="searchBtn">Get Live ETA</button>
       </form>
 
-      <div class="quick-chips">
+      <form class="search-box lookup-panel" id="pnrForm" data-panel="pnr">
+        <span class="search-icon">🎫</span>
+        <input
+          type="text"
+          id="pnrInput"
+          class="search-input"
+          data-i18n-placeholder="pnrPlaceholder"
+          placeholder="Enter 10-digit PNR Number"
+          maxlength="10"
+          inputmode="numeric"
+          autocomplete="off"
+        />
+        <button type="submit" class="search-btn" data-i18n="pnrBtn">Check PNR Status</button>
+      </form>
+
+      <form class="search-box lookup-panel" id="scheduleForm" data-panel="schedule">
+        <span class="search-icon">🕒</span>
+        <input
+          type="text"
+          id="scheduleInput"
+          class="search-input"
+          data-i18n-placeholder="schedulePlaceholder"
+          placeholder="Enter Train No. or Name for full timetable"
+          autocomplete="off"
+        />
+        <button type="submit" class="search-btn" data-i18n="scheduleBtn">View Schedule</button>
+      </form>
+
+      <div class="quick-chips" id="etaChipsRow">
         <span class="chip-label" data-i18n="tryLabel">Try:</span>
         <button class="chip" data-train="12951">12951 · Mumbai Rajdhani</button>
         <button class="chip" data-train="12301">12301 · Howrah Rajdhani</button>
@@ -117,7 +161,7 @@
     </div>
   </main>
 
-  <!-- ===== MAP MODAL (NTES-style route map) ===== -->
+  <!-- ===== MAP MODAL (Leaflet-based, NTES-style) ===== -->
   <div class="map-modal-overlay" id="mapModalOverlay">
     <div class="map-modal">
       <div class="map-modal-header">
@@ -128,12 +172,16 @@
         <button class="map-modal-close" id="mapModalClose" aria-label="Close map">✕</button>
       </div>
       <div class="map-modal-body">
-        <div id="mapSvgContainer"></div>
+        <div id="leafletMap"></div>
         <div class="map-legend">
-          <span class="legend-item"><span class="legend-swatch covered"></span> <span data-i18n="legendCovered">Path covered</span></span>
-          <span class="legend-item"><span class="legend-swatch remaining"></span> <span data-i18n="legendRemaining">Path remaining</span></span>
+          <span class="legend-item"><span class="legend-swatch covered"></span> <span data-i18n="legendCovered">Distance covered</span></span>
+          <span class="legend-item"><span class="legend-swatch remaining"></span> <span data-i18n="legendRemaining">Distance remaining</span></span>
           <span class="legend-item"><span class="legend-swatch live"></span> <span data-i18n="legendLive">Live position</span></span>
         </div>
+        <p class="map-data-note" data-i18n="mapDataNote">
+          Station coordinates and live position shown here use demo data for this prototype.
+          A production version needs a licensed GNSS/RTIS feed or NTES-equivalent live position source.
+        </p>
       </div>
     </div>
   </div>
@@ -143,14 +191,8 @@
     <div class="footer-inner">
       <div class="footer-col">
         <div class="footer-brand">
-          <span class="brand-icon small logo-mark">
-            <svg viewBox="0 0 48 48" width="18" height="18" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="24" cy="24" r="21" stroke="currentColor" stroke-width="2.5" opacity="0.5"/>
-              <path d="M9 30 C9 30 16 18 24 18 C32 18 39 30 39 30" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-              <circle cx="24" cy="18" r="3.4" fill="currentColor"/>
-              <path d="M24 21.4 L24 30" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-            </svg>
-          </span>
+          <img src="assets/logo-light.png" alt="GatiDrishti logo" class="footer-logo-img logo-for-light" />
+          <img src="assets/logo-dark.png" alt="GatiDrishti logo" class="footer-logo-img logo-for-dark" />
           <span data-i18n="brandTitle">GatiDrishti</span>
         </div>
         <p class="footer-tag" data-i18n="footerTagline">
@@ -160,7 +202,7 @@
       </div>
       <div class="footer-col">
         <h4 data-i18n="footerQuickLinks">Quick Links</h4>
-        <a href="#" data-i18n="footerNTES">NTES — National Train Enquiry</a>
+        <a href="#" data-i18n="footerNTES">NTES - National Train Enquiry</a>
         <a href="#" data-i18n="navIRCTC">IRCTC</a>
         <a href="#" data-i18n="navRailMadad">Rail Madad</a>
         <a href="#" data-i18n="footerPunctuality">Zone-wise Punctuality</a>

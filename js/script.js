@@ -1,52 +1,76 @@
 // ============================================
-// DYNAMIC ETA FORECAST — FRONTEND LOGIC
-// Dummy data for now. Replace fetchTrainData()
-// with a real API call when the backend is ready.
+// GATIDRISHTI — FRONTEND LOGIC
+//
+// MAP BOUNDARY FIX (this version):
+// Default OpenStreetMap tiles render India's northern/eastern borders
+// per international/UN convention, which shows Jammu & Kashmir and
+// parts of the Northeast incorrectly for an Indian platform. This is
+// a known, widely-documented issue (see OSM Wiki "India/Rendering
+// server" and multiple Leaflet GitHub issues). Fix applied below:
+// we keep the OSM base tiles (roads/terrain/cities are fine) but draw
+// India's correct outline ON TOP using the Survey-of-India-derived
+// boundary dataset published by the DataMeet open-data community
+// (github.com/datameet/maps, india-soi.geojson — sourced from
+// Survey of India's official shapefiles). This overlay is fetched
+// live from GitHub's raw file host, so it needs an internet
+// connection at runtime (same requirement the map tiles already have).
+// If the fetch fails, the map still works normally, just without the
+// extra correct-boundary line drawn on top.
+//
+// IMPORTANT: No fake/dummy PNR or schedule data is invented. The
+// DUMMY_TRAINS entries are prototype-only ETA demo data.
 // ============================================
 
 const searchForm = document.getElementById("searchForm");
 const trainInput = document.getElementById("trainInput");
+const pnrForm = document.getElementById("pnrForm");
+const pnrInput = document.getElementById("pnrInput");
+const scheduleForm = document.getElementById("scheduleForm");
+const scheduleInput = document.getElementById("scheduleInput");
 const chips = document.querySelectorAll(".chip[data-train]");
 const myTrainsChip = document.getElementById("myTrainsChip");
 const recentChip = document.getElementById("recentChip");
 const resultsContainer = document.getElementById("resultsContainer");
 const mapModalOverlay = document.getElementById("mapModalOverlay");
 const mapModalClose = document.getElementById("mapModalClose");
-const mapSvgContainer = document.getElementById("mapSvgContainer");
 const mapModalSubtitle = document.getElementById("mapModalSubtitle");
 const themeToggle = document.getElementById("themeToggle");
 const themeIcon = document.getElementById("themeIcon");
+const lookupTabs = document.querySelectorAll(".lookup-tab");
+const lookupPanels = document.querySelectorAll(".lookup-panel");
+const etaChipsRow = document.getElementById("etaChipsRow");
+const pnrNavLink = document.getElementById("pnrNavLink");
+const scheduleNavLink = document.getElementById("scheduleNavLink");
 
 let currentResultData = null;
+let leafletMapInstance = null;
+let indiaBoundaryLayer = null;
+let indiaBoundaryGeoJsonCache = null;
 
-// ---------- STATION COORDINATES ----------
-const STATION_COORDS = {
-  "Mumbai Central (MMCT)": [22, 78],
-  "Surat": [28, 68],
-  "Vadodara Jn": [30, 63],
-  "Vadodara Jn (BRC)": [30, 63],
-  "Ratlam Jn": [36, 55],
-  "Kota Jn": [42, 46],
-  "New Delhi": [46, 22],
-  "New Delhi (NDLS)": [46, 22],
-  "Howrah (HWH)": [78, 55],
-  "Asansol Jn": [70, 50],
-  "Dhanbad Jn": [68, 46],
-  "Dhanbad Jn (DHN)": [68, 46],
-  "Gaya Jn": [62, 40],
-  "Mughalsarai": [56, 34],
-  "Sealdah (SDAH)": [79, 56],
-  "Allahabad Jn": [54, 32],
-  "Kanpur Central": [50, 28],
-  "Kanpur Central (CNB)": [50, 28],
-  "Tundla Jn": [48, 25]
+// ---------- STATION COORDINATES (REAL approx lat/long) ----------
+const STATION_LATLNG = {
+  "Mumbai Central (MMCT)": [18.9696, 72.8194],
+  "Surat": [21.1959, 72.8302],
+  "Vadodara Jn": [22.3072, 73.1812],
+  "Vadodara Jn (BRC)": [22.3072, 73.1812],
+  "Ratlam Jn": [23.3315, 75.0367],
+  "Kota Jn": [25.1804, 75.8648],
+  "New Delhi": [28.6431, 77.2197],
+  "New Delhi (NDLS)": [28.6431, 77.2197],
+  "Howrah (HWH)": [22.5839, 88.3428],
+  "Asansol Jn": [23.6739, 86.9524],
+  "Dhanbad Jn": [23.7957, 86.4304],
+  "Dhanbad Jn (DHN)": [23.7957, 86.4304],
+  "Gaya Jn": [24.7955, 84.9994],
+  "Mughalsarai": [25.2802, 83.1187],
+  "Sealdah (SDAH)": [22.5675, 88.3708],
+  "Allahabad Jn": [25.4484, 81.8397],
+  "Kanpur Central": [26.4499, 80.3319],
+  "Kanpur Central (CNB)": [26.4499, 80.3319],
+  "Tundla Jn": [27.2226, 78.2379]
 };
 
-// ---------- DUMMY DATA STORE ----------
-// NOTE: "platform" is the expected/predicted platform number.
-// "platformConfidence" flags cases where allocation may still change
-// closer to arrival (kept honest — real platform assignment often
-// firms up only in the last few km, per interlocking/yard planning).
+// ---------- ETA DEMO DATA ----------
 const DUMMY_TRAINS = {
   "12951": {
     number: "12951",
@@ -66,6 +90,8 @@ const DUMMY_TRAINS = {
     lastUpdated: "2 min ago",
     reason: "Running late due to congestion near Surat; recovered 6 min after last halt.",
     punctuality30d: 71,
+    totalDistanceKm: 1384,
+    coveredDistanceKm: 490,
     stops: [
       { name: "Mumbai Central (MMCT)", sched: "16:00", predicted: "16:00", status: "ontime", delta: "Origin", passed: true, platform: "1", platformConfidence: "confirmed" },
       { name: "Surat", sched: "12:48", predicted: "13:04", status: "delay", delta: "+16 min", passed: true, platform: "2", platformConfidence: "confirmed" },
@@ -97,6 +123,8 @@ const DUMMY_TRAINS = {
     lastUpdated: "1 min ago",
     reason: "Running on schedule. No active restrictions on this section.",
     punctuality30d: 88,
+    totalDistanceKm: 1447,
+    coveredDistanceKm: 165,
     stops: [
       { name: "Howrah (HWH)", sched: "16:55", predicted: "16:55", status: "ontime", delta: "Origin", passed: true, platform: "9", platformConfidence: "confirmed" },
       { name: "Asansol Jn", sched: "17:35", predicted: "17:35", status: "ontime", delta: "On time", passed: true, platform: "3", platformConfidence: "confirmed" },
@@ -127,6 +155,8 @@ const DUMMY_TRAINS = {
     lastUpdated: "4 min ago",
     reason: "Delay accumulated due to a preceding freight movement and one unscheduled signal halt near Allahabad.",
     punctuality30d: 54,
+    totalDistanceKm: 1450,
+    coveredDistanceKm: 780,
     stops: [
       { name: "Sealdah (SDAH)", sched: "23:55", predicted: "23:55", status: "ontime", delta: "Origin", passed: true, platform: "8", platformConfidence: "confirmed" },
       { name: "Allahabad Jn", sched: "02:20", predicted: "02:58", status: "severe", delta: "+38 min", passed: true, platform: "6", platformConfidence: "confirmed" },
@@ -141,66 +171,63 @@ const DUMMY_TRAINS = {
   }
 };
 
-// ---------- EVENT WIRING ----------
+// ---------- TAB SWITCHING (ETA / PNR / Schedule) ----------
+
+lookupTabs.forEach((tab) => {
+  tab.addEventListener("click", () => activateTab(tab.getAttribute("data-tab")));
+});
+
+pnrNavLink.addEventListener("click", (e) => { e.preventDefault(); activateTab("pnr"); scrollToHero(); });
+scheduleNavLink.addEventListener("click", (e) => { e.preventDefault(); activateTab("schedule"); scrollToHero(); });
+
+function scrollToHero() {
+  document.querySelector(".hero-section").scrollIntoView({ behavior: "smooth" });
+}
+
+function activateTab(tabName) {
+  lookupTabs.forEach((tab) => tab.classList.toggle("active", tab.getAttribute("data-tab") === tabName));
+  lookupPanels.forEach((panel) => panel.classList.toggle("active", panel.getAttribute("data-panel") === tabName));
+  etaChipsRow.style.display = tabName === "eta" ? "flex" : "none";
+  resultsContainer.innerHTML = getEmptyStateForTab(tabName);
+}
+
+function getEmptyStateForTab(tabName) {
+  if (tabName === "pnr") {
+    return `<div class="empty-state"><div class="empty-icon">🎫</div><p data-i18n="emptyStatePnr">${t("emptyStatePnr")}</p></div>`;
+  }
+  if (tabName === "schedule") {
+    return `<div class="empty-state"><div class="empty-icon">🕒</div><p data-i18n="emptyStateSchedule">${t("emptyStateSchedule")}</p></div>`;
+  }
+  return `<div class="empty-state"><div class="empty-icon">🚉</div><p data-i18n="emptyState">${t("emptyState")}</p></div>`;
+}
+
+// ---------- ETA SEARCH ----------
 
 searchForm.addEventListener("submit", function (e) {
   e.preventDefault();
   const query = trainInput.value.trim();
-  if (!query) {
-    trainInput.focus();
-    return;
-  }
-  handleSearch(query);
+  if (!query) { trainInput.focus(); return; }
+  handleEtaSearch(query);
 });
 
 chips.forEach((chip) => {
   chip.addEventListener("click", () => {
     const trainNo = chip.getAttribute("data-train");
     trainInput.value = trainNo;
-    handleSearch(trainNo);
+    handleEtaSearch(trainNo);
   });
 });
 
 myTrainsChip.addEventListener("click", () => {
-  console.log("My Trains — to be implemented with login/backend.");
+  console.log("My Trains — requires login/backend, not yet implemented.");
 });
-
 recentChip.addEventListener("click", () => {
-  console.log("Recent Searches — to be implemented with localStorage/backend.");
+  console.log("Recent Searches — requires localStorage/backend wiring, not yet implemented.");
 });
 
-mapModalClose.addEventListener("click", closeMapModal);
-mapModalOverlay.addEventListener("click", (e) => {
-  if (e.target === mapModalOverlay) closeMapModal();
-});
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeMapModal();
-});
-
-// ---------- THEME TOGGLE ----------
-
-function applyTheme(theme) {
-  document.body.setAttribute("data-theme", theme);
-  themeIcon.textContent = theme === "dark" ? "☀️" : "🌙";
-  localStorage.setItem("eta_theme", theme);
-}
-
-themeToggle.addEventListener("click", () => {
-  const current = document.body.getAttribute("data-theme");
-  applyTheme(current === "dark" ? "light" : "dark");
-});
-
-(function initTheme() {
-  const saved = localStorage.getItem("eta_theme");
-  applyTheme(saved === "dark" ? "dark" : "light");
-})();
-
-// ---------- SEARCH HANDLER ----------
-
-function handleSearch(query) {
+function handleEtaSearch(query) {
   const key = query.trim();
   resultsContainer.innerHTML = `<div class="empty-state"><div class="empty-icon">🚆</div><p>${t("fetching")} <strong>${escapeHtml(key)}</strong>...</p></div>`;
-
   setTimeout(() => {
     const data = fetchTrainData(key);
     if (!data) {
@@ -221,12 +248,89 @@ function fetchTrainData(query) {
 }
 
 window.rerenderCurrentResult = function () {
-  if (currentResultData) {
-    renderResultCard(currentResultData);
-  }
+  if (currentResultData) renderResultCard(currentResultData);
 };
 
-// ---------- RENDERING ----------
+// ---------- PNR STATUS (UI SHELL ONLY — NO LIVE DATA CONNECTED) ----------
+
+pnrForm.addEventListener("submit", function (e) {
+  e.preventDefault();
+  const pnr = pnrInput.value.trim();
+  if (!/^\d{10}$/.test(pnr)) {
+    renderPnrValidationError();
+    return;
+  }
+  renderPnrNotConnected(pnr);
+});
+
+function renderPnrValidationError() {
+  resultsContainer.innerHTML = `
+    <div class="empty-state warn">
+      <div class="empty-icon">⚠️</div>
+      <p>${t("pnrInvalid")}</p>
+    </div>
+  `;
+}
+
+function renderPnrNotConnected(pnr) {
+  resultsContainer.innerHTML = `
+    <div class="not-connected-card">
+      <div class="not-connected-icon">🎫</div>
+      <h3>${t("pnrLookupFor")} ${escapeHtml(pnr)}</h3>
+      <p class="not-connected-text">${t("pnrNotConnectedText")}</p>
+      <ul class="not-connected-list">
+        <li>${t("pnrOption1")}</li>
+        <li>${t("pnrOption2")}</li>
+        <li>${t("pnrOption3")}</li>
+      </ul>
+      <div class="not-connected-badge">${t("noDataFabricated")}</div>
+    </div>
+  `;
+}
+
+// ---------- TRAIN SCHEDULE (UI SHELL ONLY — NO LIVE DATA CONNECTED) ----------
+
+scheduleForm.addEventListener("submit", function (e) {
+  e.preventDefault();
+  const query = scheduleInput.value.trim();
+  if (!query) { scheduleInput.focus(); return; }
+  renderScheduleNotConnected(query);
+});
+
+function renderScheduleNotConnected(query) {
+  resultsContainer.innerHTML = `
+    <div class="not-connected-card">
+      <div class="not-connected-icon">🕒</div>
+      <h3>${t("scheduleLookupFor")} "${escapeHtml(query)}"</h3>
+      <p class="not-connected-text">${t("scheduleNotConnectedText")}</p>
+      <ul class="not-connected-list">
+        <li>${t("scheduleOption1")}</li>
+        <li>${t("scheduleOption2")}</li>
+      </ul>
+      <div class="not-connected-badge">${t("noDataFabricated")}</div>
+    </div>
+  `;
+}
+
+// ---------- THEME TOGGLE ----------
+
+function applyTheme(theme) {
+  document.body.setAttribute("data-theme", theme);
+  themeIcon.textContent = theme === "dark" ? "☀️" : "🌙";
+  localStorage.setItem("eta_theme", theme);
+}
+
+themeToggle.addEventListener("click", () => {
+  const current = document.body.getAttribute("data-theme");
+  applyTheme(current === "dark" ? "light" : "dark");
+});
+
+(function initTheme() {
+  const saved = localStorage.getItem("eta_theme");
+  applyTheme(saved === "dark" ? "dark" : "light");
+})();
+
+// ---------- RENDERING: ETA RESULT CARD ----------
 
 function renderNotFound(query) {
   resultsContainer.innerHTML = `
@@ -246,16 +350,14 @@ function renderResultCard(data) {
       ${renderHeader(data, statusClass, statusText)}
       ${renderEtaPanel(data)}
       ${renderTimeline(data)}
-      ${renderMapButtonSection(data)}
+      ${renderRouteOverview(data)}
       ${renderAlerts(data)}
     </div>
     ${renderBottomGrid(data)}
   `;
 
   const mapBtn = document.getElementById("showMapBtn");
-  if (mapBtn) {
-    mapBtn.addEventListener("click", () => openMapModal(data));
-  }
+  if (mapBtn) mapBtn.addEventListener("click", () => openMapModal(data));
 }
 
 function renderHeader(data, statusClass, statusText) {
@@ -276,8 +378,6 @@ function renderHeader(data, statusClass, statusText) {
     </div>
   `;
 }
-
-// ---------- PLATFORM HELPERS ----------
 
 function platformBadgeHtml(platformNo, confidenceLevel, size) {
   if (!platformNo) return "";
@@ -301,17 +401,13 @@ function renderEtaPanel(data) {
         <span class="eta-label">${t("nextStationEta")}</span>
         <span class="eta-value">${data.nextEtaTime}</span>
         <span class="eta-station">${escapeHtml(data.nextStation)}</span>
-        <div class="eta-platform-row">
-          ${platformBadgeHtml(data.nextPlatform, data.nextPlatformConfidence, "lg")}
-        </div>
+        <div class="eta-platform-row">${platformBadgeHtml(data.nextPlatform, data.nextPlatformConfidence, "lg")}</div>
         <span class="eta-updated">${t("updated")} ${data.lastUpdated}</span>
       </div>
       <div class="eta-secondary">
         <span class="eta-label">${t("destinationEta")}</span>
         <span class="eta-value" style="font-size:24px;">${data.destinationEtaTime}</span>
-        <div class="eta-platform-row">
-          ${platformBadgeHtml(data.destinationPlatform, data.destinationPlatformConfidence, "")}
-        </div>
+        <div class="eta-platform-row">${platformBadgeHtml(data.destinationPlatform, data.destinationPlatformConfidence, "")}</div>
       </div>
       <div class="eta-reason">
         <span class="icon">ℹ️</span>
@@ -340,16 +436,22 @@ function renderTimeline(data) {
   `;
 }
 
-function renderMapButtonSection(data) {
+function renderRouteOverview(data) {
+  const pct = data.totalDistanceKm ? Math.round((data.coveredDistanceKm / data.totalDistanceKm) * 100) : 0;
   return `
-    <div class="map-strip-section">
+    <div class="route-overview-section">
       <div class="section-title-row">
         <div class="section-title">${t("routeOverview")}</div>
         <button class="show-map-btn" id="showMapBtn">🗺️ ${t("showOnMap")}</button>
       </div>
-      <div class="map-strip-mini">
-        <div class="map-track"></div>
-        <div class="map-train-icon-mini">🚆</div>
+      <div class="route-progress-track">
+        <div class="route-progress-fill" style="width:${pct}%;"></div>
+        <div class="route-progress-marker" style="left:${pct}%;">🚆</div>
+      </div>
+      <div class="route-progress-labels">
+        <span>${escapeHtml(data.origin || "Origin")}</span>
+        <span class="route-progress-pct">${data.coveredDistanceKm} / ${data.totalDistanceKm} km (${pct}%)</span>
+        <span>${escapeHtml(data.destination || "Destination")}</span>
       </div>
     </div>
   `;
@@ -367,12 +469,7 @@ function renderAlerts(data) {
     </div>
   `).join("");
 
-  return `
-    <div class="alerts-section">
-      <div class="section-title">${t("activeAlerts")}</div>
-      ${items}
-    </div>
-  `;
+  return `<div class="alerts-section"><div class="section-title">${t("activeAlerts")}</div>${items}</div>`;
 }
 
 function renderBottomGrid(data) {
@@ -396,69 +493,140 @@ function renderBottomGrid(data) {
   `;
 }
 
-// ---------- MAP MODAL (NTES-style SVG route map) ----------
+// ---------- MAP MODAL (Leaflet.js — real India map, boundary-corrected) ----------
+
+const INDIA_BOUNDARY_GEOJSON_URL = "https://raw.githubusercontent.com/datameet/maps/master/Country/india-soi.geojson";
+
+mapModalClose.addEventListener("click", closeMapModal);
+mapModalOverlay.addEventListener("click", (e) => { if (e.target === mapModalOverlay) closeMapModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMapModal(); });
 
 function openMapModal(data) {
   mapModalSubtitle.textContent = `${data.number} · ${data.name}`;
-  mapSvgContainer.innerHTML = buildRouteMapSvg(data);
   mapModalOverlay.classList.add("open");
   document.body.classList.add("modal-open");
+
+  setTimeout(() => buildLeafletMap(data), 50);
 }
 
 function closeMapModal() {
   mapModalOverlay.classList.remove("open");
   document.body.classList.remove("modal-open");
+  if (leafletMapInstance) {
+    leafletMapInstance.remove();
+    leafletMapInstance = null;
+    indiaBoundaryLayer = null;
+  }
 }
 
-function buildRouteMapSvg(data) {
+function buildLeafletMap(data) {
   const points = data.stops
-    .map((s) => ({ ...s, coord: STATION_COORDS[s.name] }))
-    .filter((s) => s.coord);
+    .map((s) => ({ ...s, latlng: STATION_LATLNG[s.name] }))
+    .filter((s) => s.latlng);
 
   if (points.length === 0) {
-    return `<p style="padding:30px;text-align:center;color:#888;">Map data unavailable for this route.</p>`;
+    document.getElementById("leafletMap").innerHTML =
+      `<p style="padding:30px;text-align:center;color:#888;">Map data unavailable for this route.</p>`;
+    return;
   }
 
   const currentIdx = points.findIndex((p) => p.current);
   const splitIdx = currentIdx >= 0 ? currentIdx : 0;
 
-  const toXY = (p) => `${p.coord[0]},${p.coord[1]}`;
-  const coveredPts = points.slice(0, splitIdx + 1).map(toXY).join(" ");
-  const remainingPts = points.slice(splitIdx).map(toXY).join(" ");
-
-  const markers = points.map((p, i) => {
-    const isCurrent = i === splitIdx;
-    const isPassed = i < splitIdx;
-    const dotClass = isCurrent ? "map-dot-current" : (isPassed ? "map-dot-passed" : "map-dot-upcoming");
-    const platformSuffix = p.platform ? ` (PF ${escapeHtml(p.platform)})` : "";
-    return `
-      <g class="map-station-group">
-        <circle cx="${p.coord[0]}" cy="${p.coord[1]}" r="${isCurrent ? 1.6 : 1.1}" class="${dotClass}" />
-        <text x="${p.coord[0]}" y="${p.coord[1] - 2.2}" class="map-station-label">${escapeHtml(p.name.split(" (")[0])}${platformSuffix}</text>
-      </g>
-    `;
-  }).join("");
-
+  const coveredCoords = points.slice(0, splitIdx + 1).map((p) => p.latlng);
+  const remainingCoords = points.slice(splitIdx).map((p) => p.latlng);
   const currentPoint = points[splitIdx];
 
-  return `
-    <svg viewBox="0 0 100 100" class="india-map-svg" preserveAspectRatio="xMidYMid meet">
-      <path d="M35,5 C55,3 68,12 72,20 C80,25 85,35 82,45 C88,55 86,65 78,68 C80,78 70,85 60,88 C55,95 45,96 40,90 C30,92 20,88 22,78 C10,75 8,62 15,55 C8,48 10,35 20,30 C18,20 25,8 35,5 Z"
-            class="india-outline" />
-      <polyline points="${coveredPts}" class="route-line covered" />
-      <polyline points="${remainingPts}" class="route-line remaining" />
-      ${markers}
-      <circle cx="${currentPoint.coord[0]}" cy="${currentPoint.coord[1]}" r="2.2" class="live-position-ring" />
-      <circle cx="${currentPoint.coord[0]}" cy="${currentPoint.coord[1]}" r="1.3" class="live-position-dot" />
-    </svg>
-  `;
+  if (leafletMapInstance) {
+    leafletMapInstance.remove();
+    leafletMapInstance = null;
+    indiaBoundaryLayer = null;
+  }
+
+  leafletMapInstance = L.map("leafletMap", { scrollWheelZoom: true });
+
+  // Base tiles: OpenStreetMap. Note — these render India's borders per
+  // international convention (see comment block at top of file), which
+  // is why we draw the corrected outline on top, below.
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 12,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | India boundary: Survey of India (via DataMeet)'
+  }).addTo(leafletMapInstance);
+
+  // Distance covered = green. Distance yet to be covered = blue.
+  L.polyline(coveredCoords, { color: "#2E7D32", weight: 5, opacity: 0.9 }).addTo(leafletMapInstance);
+  L.polyline(remainingCoords, { color: "#1565C0", weight: 4, opacity: 0.7, dashArray: "2 8" }).addTo(leafletMapInstance);
+
+  points.forEach((p, i) => {
+    const isCurrent = i === splitIdx;
+    const isPassed = i < splitIdx;
+    const color = isCurrent ? "#C41230" : (isPassed ? "#2E7D32" : "#1565C0");
+    const platformText = p.platform ? ` (PF ${p.platform})` : "";
+
+    L.circleMarker(p.latlng, {
+      radius: isCurrent ? 8 : 6,
+      color: color,
+      fillColor: color,
+      fillOpacity: 0.9,
+      weight: 2
+    })
+      .addTo(leafletMapInstance)
+      .bindPopup(`<strong>${escapeHtml(p.name)}</strong>${platformText}<br>${p.sched} → ${p.predicted}`);
+  });
+
+  const blinkIcon = L.divIcon({
+    className: "leaflet-blink-icon",
+    html: `<div class="blink-dot"></div>`,
+    iconSize: [22, 22]
+  });
+  L.marker(currentPoint.latlng, { icon: blinkIcon }).addTo(leafletMapInstance);
+
+  const bounds = L.latLngBounds(points.map((p) => p.latlng));
+  leafletMapInstance.fitBounds(bounds, { padding: [30, 30] });
+
+  // Draw India's correct outline (Survey of India boundary, via DataMeet)
+  // on top of the base tiles, so J&K/Ladakh and the Northeast display
+  // correctly regardless of the base tile's own border rendering.
+  loadIndiaBoundaryOverlay();
+}
+
+function loadIndiaBoundaryOverlay() {
+  if (indiaBoundaryGeoJsonCache) {
+    drawIndiaBoundary(indiaBoundaryGeoJsonCache);
+    return;
+  }
+  fetch(INDIA_BOUNDARY_GEOJSON_URL)
+    .then((res) => {
+      if (!res.ok) throw new Error("Boundary fetch failed: " + res.status);
+      return res.json();
+    })
+    .then((geojson) => {
+      indiaBoundaryGeoJsonCache = geojson;
+      drawIndiaBoundary(geojson);
+    })
+    .catch((err) => {
+      // Graceful degradation: map still works, just without the
+      // corrected-boundary overlay line. Logged for debugging only.
+      console.warn("Could not load corrected India boundary overlay (offline or GitHub unreachable):", err);
+    });
+}
+
+function drawIndiaBoundary(geojson) {
+  if (!leafletMapInstance) return;
+  if (indiaBoundaryLayer) {
+    leafletMapInstance.removeLayer(indiaBoundaryLayer);
+  }
+  indiaBoundaryLayer = L.geoJSON(geojson, {
+    style: {
+      color: "#003366",
+      weight: 2.5,
+      opacity: 0.9,
+      fill: false
+    }
+  }).addTo(leafletMapInstance);
 }
 
 // ---------- UTILITIES ----------
-
-function capitalize(str) {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -466,4 +634,4 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-console.log("Dynamic ETA Forecast frontend — platform numbers, map view, language switch and theme toggle loaded.");
+console.log("GatiDrishti frontend — corrected India boundary overlay, real Leaflet map, PNR/Schedule shells loaded.");
