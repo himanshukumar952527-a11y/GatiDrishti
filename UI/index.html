@@ -7,8 +7,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@500;600&family=Noto+Sans+Bengali:wght@500;600&display=swap" rel="stylesheet">
 
-  <!-- Leaflet.js — free, open-source map library, no API key required.
-       Used only for the "Show on Map" modal. -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -20,10 +18,6 @@
   <header class="site-header">
     <div class="header-inner">
       <div class="brand">
-        <!-- Logo: two <img> tags, one per theme. CSS shows/hides the
-             correct one based on data-theme on <body>. See guide
-             Section "Logos" for how this switching works and how to
-             change the paths. -->
         <img src="assets/logo-light.png" alt="GatiDrishti logo" class="brand-logo-img logo-for-light" />
         <img src="assets/logo-dark.png" alt="GatiDrishti logo" class="brand-logo-img logo-for-dark" />
 
@@ -35,11 +29,9 @@
 
       <div class="header-right">
         <nav class="header-links">
-          <a href="#" data-i18n="navNTES">NTES</a>
-          <a href="#" data-i18n="navIRCTC">IRCTC</a>
-          <a href="#" data-i18n="navRailMadad">Rail Madad</a>
-          <a href="#" id="pnrNavLink" data-i18n="navPNR">PNR Status</a>
-          <a href="#" id="scheduleNavLink" data-i18n="navSchedule">Train Schedule</a>
+          <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener" data-i18n="navNTES">NTES</a>
+          <a href="https://www.irctc.co.in/" target="_blank" rel="noopener" data-i18n="navIRCTC">IRCTC</a>
+          <a href="https://railmadad.indianrailways.gov.in/madad/final/home.jsp" target="_blank" rel="noopener" data-i18n="navRailMadad">Rail Madad</a>
         </nav>
 
         <a href="tel:139" class="helpline-btn" aria-label="Call 139 for security or medical assistance">
@@ -63,23 +55,25 @@
         </div>
 
         <button class="icon-btn theme-toggle" id="themeToggle" aria-label="Toggle dark mode">
-          <!-- <span class="icon-btn-symbol">🌙</span>
-            <span id="themeCurrentLabel">Dark Theme</span> -->
           <span id="themeIcon">🌙</span>
         </button>
 
-        <a href="#" class="help-link" data-i18n="navHelp">Help</a>
+        <button class="icon-btn help-link" id="helpBtn" data-i18n="navHelp">Help</button>
       </div>
     </div>
     <div class="loco-strip" aria-hidden="true"></div>
   </header>
 
   <!-- ===== HERO / SEARCH SECTION ===== -->
-  <!-- Background image: --hero-bg-image now points directly at your
-       downloaded locomotive photo. Only the photo shows — the old
-       decorative dot/chevron texture strips have been removed. -->
-  <section class="hero-section" style="--hero-bg-image: url('assets/heroBackground.png');">
+  <!-- Hero now layers THREE things behind the content:
+       1. herobackground.png (the train photo) - base layer
+       2. Restored diagonal chevron + dot texture strips (decorative, IR-livery inspired)
+       3. Readability overlay gradient on top
+       Strip colors/opacity are tuned separately for light vs dark theme so
+       they stay clearly visible in both. -->
+  <section class="hero-section" style="--hero-bg-image: url('assets/herobackground.png');">
     <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-strips" aria-hidden="true"></div>
     <div class="hero-overlay" aria-hidden="true"></div>
     <div class="hero-content">
       <span class="hero-kicker" data-i18n="heroKicker">Dynamic ETA Forecast</span>
@@ -93,6 +87,7 @@
         <button class="lookup-tab active" data-tab="eta" data-i18n="tabEta">Live ETA</button>
         <button class="lookup-tab" data-tab="pnr" data-i18n="tabPnr">PNR Status</button>
         <button class="lookup-tab" data-tab="schedule" data-i18n="tabSchedule">Train Schedule</button>
+        <button class="lookup-tab" data-tab="coach" data-i18n="tabCoach">Coach Position</button>
       </div>
 
       <form class="search-box lookup-panel active" id="searchForm" data-panel="eta">
@@ -136,14 +131,20 @@
         <button type="submit" class="search-btn" data-i18n="scheduleBtn">View Schedule</button>
       </form>
 
-      <div class="quick-chips" id="etaChipsRow">
-        <span class="chip-label" data-i18n="tryLabel">Try:</span>
-        <button class="chip" data-train="12951">12951 · Mumbai Rajdhani</button>
-        <button class="chip" data-train="12301">12301 · Howrah Rajdhani</button>
-        <button class="chip" data-train="12259">12259 · Sealdah Duronto</button>
-        <button class="chip chip-secondary" id="myTrainsChip" data-i18n="myTrains">My Trains</button>
-        <button class="chip chip-secondary" id="recentChip" data-i18n="recentSearches">Recent Searches</button>
-      </div>
+      <form class="search-box lookup-panel" id="coachForm" data-panel="coach">
+        <span class="search-icon">🚃</span>
+        <input
+          type="text"
+          id="coachInput"
+          class="search-input"
+          data-i18n-placeholder="coachPlaceholder"
+          placeholder="Enter Train No. to view coach position (e.g., 12951)"
+          autocomplete="off"
+        />
+        <button type="submit" class="search-btn" data-i18n="coachBtn">View Coach Position</button>
+      </form>
+
+      <div class="quick-chips" id="quickChipsRow"></div>
 
       <p class="hero-note" data-i18n="heroNote">
         Data sources: GPS feeds, signal aspects, historical delay patterns, weather &amp; congestion data.
@@ -186,6 +187,35 @@
     </div>
   </div>
 
+  <!-- ===== HELP MODAL ===== -->
+  <div class="help-modal-overlay" id="helpModalOverlay">
+    <div class="help-modal">
+      <div class="help-modal-header">
+        <h3 data-i18n="helpModalTitle">Help &amp; Support</h3>
+        <button class="map-modal-close" id="helpModalClose" aria-label="Close help">✕</button>
+      </div>
+      <div class="help-modal-body">
+        <div class="help-faq-item">
+          <div class="help-faq-q">❓ <span data-i18n="helpFaq1Q">How do I check my train's live ETA?</span></div>
+          <div class="help-faq-a" data-i18n="helpFaq1A">Go to the "Live ETA" tab, type your train number or name, and press Get Live ETA. Try one of the sample trains shown as quick chips.</div>
+        </div>
+        <div class="help-faq-item">
+          <div class="help-faq-q">❓ <span data-i18n="helpFaq2Q">Is the data shown here real?</span></div>
+          <div class="help-faq-a" data-i18n="helpFaq2A">This is a Smart India Hackathon 2026 prototype. ETA, schedule and coach data shown are demo/reference values used to illustrate the design — not live official data.</div>
+        </div>
+        <div class="help-faq-item">
+          <div class="help-faq-q">❓ <span data-i18n="helpFaq3Q">Who do I contact for real railway complaints?</span></div>
+          <div class="help-faq-a" data-i18n="helpFaq3A">For official assistance, use Rail Madad, call 139 (security/medical), or visit the NTES/IRCTC links in the header.</div>
+        </div>
+        <div class="help-contact-box">
+          <div class="help-contact-title" data-i18n="helpContactTitle">Need more help?</div>
+          <a href="mailto:support@gatidrishti-demo.example" class="help-contact-link">📧 support@gatidrishti-demo.example</a>
+          <a href="tel:139" class="help-contact-link">📞 139 (Security / Medical)</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== FOOTER ===== -->
   <footer class="site-footer">
     <div class="footer-inner">
@@ -193,7 +223,7 @@
         <div class="footer-brand">
           <img src="assets/logo-light.png" alt="GatiDrishti logo" class="footer-logo-img logo-for-light" />
           <img src="assets/logo-dark.png" alt="GatiDrishti logo" class="footer-logo-img logo-for-dark" />
-          <span data-i18n="brandTitle">GatiDrishti</span>
+          <span class="footer-brand-text" data-i18n="brandTitle">GatiDrishti</span>
         </div>
         <p class="footer-tag" data-i18n="footerTagline">
           A Smart India Hackathon 2026 prototype for real-time, data-driven ETA
@@ -202,9 +232,9 @@
       </div>
       <div class="footer-col">
         <h4 data-i18n="footerQuickLinks">Quick Links</h4>
-        <a href="#" data-i18n="footerNTES">NTES - National Train Enquiry</a>
-        <a href="#" data-i18n="navIRCTC">IRCTC</a>
-        <a href="#" data-i18n="navRailMadad">Rail Madad</a>
+        <a href="https://enquiry.indianrail.gov.in/mntes/" target="_blank" rel="noopener" data-i18n="footerNTES">NTES — National Train Enquiry</a>
+        <a href="https://www.irctc.co.in/" target="_blank" rel="noopener" data-i18n="navIRCTC">IRCTC</a>
+        <a href="https://railmadad.indianrailways.gov.in/madad/final/home.jsp" target="_blank" rel="noopener" data-i18n="navRailMadad">Rail Madad</a>
         <a href="#" data-i18n="footerPunctuality">Zone-wise Punctuality</a>
       </div>
       <div class="footer-col">
