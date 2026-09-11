@@ -439,48 +439,49 @@ searchForm.addEventListener("submit", function (e) {
   handleEtaSearch(query);
 });
 
-function handleEtaSearch(query) {
-  const key = query.trim();
-  resultsContainer.innerHTML = `<div class="empty-state"><div class="empty-icon">🚆</div><p>${t("fetching")} <strong>${escapeHtml(key)}</strong>...</p></div>`;
-  setTimeout(() => {
-    const data = fetchTrainData(key);
-    if (!data) { currentResultData = null; renderNotFound(key); return; }
-    currentResultData = data;
-    renderResultCard(data);
-  }, 500);
-}
-
-function fetchTrainData(query) {
-  const normalized = query.trim().toLowerCase();
-  return Object.values(DUMMY_TRAINS).find(
-    (tr) => tr.number === normalized || tr.name.toLowerCase().includes(normalized)
-  );
-}
-
-// async function fetchTrainData(query) {
-//   const normalized = query.trim().toLowerCase();
-  
-//   try {
-//     // 1. Make the HTTP GET request to your backend URL
-//     // encodeURIComponent ensures spaces/special characters are URL-safe
-//     const response = await fetch(`/api/trains?search=${encodeURIComponent(normalized)}`);
-    
-//     // 2. Check if the server responded successfully (status 200-299)
-//     if (!response.ok) {
-//       console.warn("Train not found or server error");
-//       return null; 
-//     }
-
-//     // 3. Convert the response to a usable JavaScript object
-//     const data = await response.json();
-//     return data; 
-    
-//   } catch (error) {
-//     // 4. Handle network failures (e.g., user is offline, server is down)
-//     console.error("Network error while fetching train data:", error);
-//     return null;
-//   }
+// earlie function not connected to database ;
+// function handleEtaSearch(query) {
+//   const key = query.trim();
+//   resultsContainer.innerHTML = `<div class="empty-state"><div class="empty-icon">🚆</div><p>${t("fetching")} <strong>${escapeHtml(key)}</strong>...</p></div>`;
+//   setTimeout(() => {
+//     const data = fetchTrainData(key);
+//     if (!data) { currentResultData = null; renderNotFound(key); return; }
+//     currentResultData = data;
+//     renderResultCard(data);
+//   }, 500);
 // }
+
+// function fetchTrainData(query) {
+//   const normalized = query.trim().toLowerCase();
+//   return Object.values(DUMMY_TRAINS).find(
+//     (tr) => tr.number === normalized || tr.name.toLowerCase().includes(normalized)
+//   );
+// }
+
+async function fetchTrainData(query) {
+  const normalized = query.trim().toLowerCase();
+  
+  try {
+    // 1. Make the HTTP GET request to your backend URL
+    // encodeURIComponent ensures spaces/special characters are URL-safe
+    const response = await fetch(`https://gatidristhi.onrender.com/api/trains?search=${encodeURIComponent(normalized)}`);
+    
+    // 2. Check if the server responded successfully (status 200-299)
+    if (!response.ok) {
+      console.warn("Train not found or server error");
+      return null; 
+    }
+
+    // 3. Convert the response to a usable JavaScript object
+    const data = await response.json();
+    return data; 
+    
+  } catch (error) {
+    // 4. Handle network failures (e.g., user is offline, server is down)
+    console.error("Network error while fetching train data:", error);
+    return null;
+  }
+}
 
 window.rerenderCurrentResult = function () {
   if (currentResultData && currentTab === "eta") renderResultCard(currentResultData);
