@@ -4,8 +4,8 @@ from flask_cors import CORS
 from data_file import DUMMY_TRAINS
 
 app = Flask(__name__)
-# Enable CORS so your JavaScript frontend can make requests to this API without security blocks
-CORS(app) 
+# Allow your Vercel app to access the /api/ routes
+CORS(app, resources={r"/api/*": {"origins": "https://gati-drishti.vercel.app"}})
 
 
 
