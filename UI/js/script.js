@@ -458,7 +458,7 @@ searchForm.addEventListener("submit", function (e) {
 //   );
 // }
 
-async function fetchTrainData(query) {
+async function handleEtaSearch(query) {
   const normalized = query.trim().toLowerCase();
   
   try {
@@ -474,7 +474,8 @@ async function fetchTrainData(query) {
 
     // 3. Convert the response to a usable JavaScript object
     const data = await response.json();
-    return data; 
+    return renderResultCard(data);
+//   }, 500); 
     
   } catch (error) {
     // 4. Handle network failures (e.g., user is offline, server is down)
