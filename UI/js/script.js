@@ -456,6 +456,31 @@ function fetchTrainData(query) {
   );
 }
 
+// async function fetchTrainData(query) {
+//   const normalized = query.trim().toLowerCase();
+  
+//   try {
+//     // 1. Make the HTTP GET request to your backend URL
+//     // encodeURIComponent ensures spaces/special characters are URL-safe
+//     const response = await fetch(`/api/trains?search=${encodeURIComponent(normalized)}`);
+    
+//     // 2. Check if the server responded successfully (status 200-299)
+//     if (!response.ok) {
+//       console.warn("Train not found or server error");
+//       return null; 
+//     }
+
+//     // 3. Convert the response to a usable JavaScript object
+//     const data = await response.json();
+//     return data; 
+    
+//   } catch (error) {
+//     // 4. Handle network failures (e.g., user is offline, server is down)
+//     console.error("Network error while fetching train data:", error);
+//     return null;
+//   }
+// }
+
 window.rerenderCurrentResult = function () {
   if (currentResultData && currentTab === "eta") renderResultCard(currentResultData);
 };
