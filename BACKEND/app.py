@@ -1,16 +1,13 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
+from data_file import DUMMY_TRAINS
+
 app = Flask(__name__)
 # Enable CORS so your JavaScript frontend can make requests to this API without security blocks
 CORS(app) 
 
-# Your database (mocked as a Python dictionary for now)
-DUMMY_TRAINS = {
-    "101": {"number": "101", "name": "Sunrise Express", "eta": "10:30 AM", "status": "On Time"},
-    "202": {"number": "202", "name": "Midnight Runner", "eta": "11:45 PM", "status": "Delayed"},
-    "303": {"number": "303", "name": "Coastal Freight", "eta": "02:15 PM", "status": "On Time"}
-}
+
 
 @app.route('/api/trains', methods=['GET'])
 def search_trains():
