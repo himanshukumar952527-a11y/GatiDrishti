@@ -464,7 +464,7 @@ async function handleEtaSearch(query) {
   try {
     // 1. Make the HTTP GET request to your backend URL
     // encodeURIComponent ensures spaces/special characters are URL-safe
-    const response = await fetch(`https://gatidristhi.onrender.com/api/trains?search=${encodeURIComponent(normalized)}`);
+    const response = await fetch(`https://gatidrishti.onrender.com/api/trains?search=${encodeURIComponent(normalized)}`);
     
     // 2. Check if the server responded successfully (status 200-299)
     if (!response.ok) {
