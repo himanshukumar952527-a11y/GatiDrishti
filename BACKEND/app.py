@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import os
 
 from data_file import DUMMY_TRAINS
 
@@ -27,5 +28,9 @@ def search_trains():
     return jsonify({"error": "Train not found"}), 404
 
 if __name__ == '__main__':
-    # Runs the server on http://localhost:5000
-    app.run(debug=True, port=5000)
+    # 1. Grab Render's assigned PORT automatically, or default to 5000 locally
+    port = int(os.environ.get("PORT", 5000))
+    
+    # 2. Bind to 0.0.0.0 so it accepts outside traffic (required for Render)
+    # 3. Keep debug=True for local testing (Gunicorn ignores this completely in production)
+    app.run(host="0.0.0.0", port=port, debug=True)
