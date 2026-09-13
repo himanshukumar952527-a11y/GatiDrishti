@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 
-from data_file import DUMMY_TRAINS
+import database_function
 
 app = Flask(__name__)
 # Allow your Vercel app to access the /api/ routes
@@ -12,21 +12,22 @@ CORS(app, resources={r"/api/*": {"origins": "https://gati-drishti.vercel.app"}})
 
 @app.route('/api/trains', methods=['GET'])
 def search_trains():
-    query = request.args.get('search', '').strip().lower()
+    query = request.args.get('search', '').strip()
     
     if not query:
         return jsonify({"error": "Please provide a search term"}), 400
 
-    # 1. Direct lookup using the outer dictionary key (e.g., "12951")
-    if query in DUMMY_TRAINS:
-        return jsonify(DUMMY_TRAINS[query]), 200
-
-    # 2. Fallback: Search by train name if they typed text instead of a number
-    for train_id, train_data in DUMMY_TRAINS.items():
-        if query in train_data.get("name", "").lower():
+    try:
+        # Make the single function call to get the data
+        train_data = fetch_train_data(query)
+        
+        if train_data:
             return jsonify(train_data), 200
-            
-    return jsonify({"error": "Train not found"}), 404
+        else:
+            return jsonify({"error": "Train not found"}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     # 1. Grab Render's assigned PORT automatically, or default to 5000 locally
