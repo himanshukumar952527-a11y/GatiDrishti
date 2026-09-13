@@ -29,6 +29,21 @@ def search_trains():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/api/pnr/<pnr_number>", methods=["GET"])
+def get_pnr(pnr_number):
+    if len(pnr_number) != 10 or not pnr_number.isdigit():
+        return jsonify({"error": "Invalid PNR format. Must be 10 digits."}), 400
+        
+    data = fetch_pnr_status(pnr_number)
+    return jsonify(data)
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
+
+
+
 if __name__ == '__main__':
     # 1. Grab Render's assigned PORT automatically, or default to 5000 locally
     port = int(os.environ.get("PORT", 5000))
