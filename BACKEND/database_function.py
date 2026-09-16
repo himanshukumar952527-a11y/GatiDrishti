@@ -1,9 +1,18 @@
 import os
 from supabase import create_client, Client
 
-# Initialize Supabase client
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+print("DEBUG SUPABASE_URL:", bool(SUPABASE_URL))
+print("DEBUG SUPABASE_KEY:", bool(SUPABASE_KEY))
+
+if not SUPABASE_URL:
+    raise RuntimeError("SUPABASE_URL is missing")
+
+if not SUPABASE_KEY:
+    raise RuntimeError("SUPABASE_KEY is missing")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def fetch_train_data(query: str):
