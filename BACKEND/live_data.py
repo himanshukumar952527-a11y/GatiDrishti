@@ -20,7 +20,6 @@ if not RAILRADAR_API_KEY:
         "RAILRADAR_API_KEY is missing from .env"
     )
 
-
 RAILRADAR_BASE_URL = "https://api.railradar.in/v1"
 
 
@@ -171,41 +170,6 @@ def fetch_live_train(train_number):
 
     next_halt = data.get("nextHalt") or {}
 
-    ####Opratinal Events 
-    # ============================================================
-# FETCH TRAIN EVENTS
-# ============================================================
-
-def fetch_live_events(train_number):
-    """
-    Fetch operational events/exceptions for a train
-    from RailRadar.
-
-    Events may include:
-        - DIVERTED
-        - RESCHEDULED
-        - PARTIALLY_CANCELLED
-        - other RailRadar exceptions
-    """
-
-    live_data = fetch_live_train(train_number)
-
-    if not live_data["success"]:
-        return {
-            "success": False,
-            "events": [],
-            "error": live_data.get("error")
-        }
-
-    events = live_data.get("events", [])
-
-    return {
-        "success": True,
-        "source": "railradar",
-        "train_number": train_number,
-        "events": events
-    }
-
     # --------------------------------------------------------
     # FINAL LIVE DATA
     # --------------------------------------------------------
@@ -268,9 +232,12 @@ def fetch_live_events(train_number):
         ),
 
         "next_halt": next_halt,
-        # NEW
-        "events": data.get("exceptions", []),
 
+        # RailRadar operational exceptions/events
+        "events": data.get(
+            "exceptions",
+            []
+        ),
 
         "route": data.get(
             "route",
@@ -280,6 +247,45 @@ def fetch_live_events(train_number):
         "is_live": data.get(
             "isLive"
         )
+    }
+
+
+# ============================================================
+# FETCH TRAIN EVENTS
+# ============================================================
+
+def fetch_live_events(train_number):
+    """
+    Fetch operational events/exceptions for a train
+    from RailRadar.
+
+    Events may include:
+        - DIVERTED
+        - RESCHEDULED
+        - PARTIALLY_CANCELLED
+        - other RailRadar exceptions
+    """
+
+    live_data = fetch_live_train(train_number)
+
+    if not live_data["success"]:
+
+        return {
+            "success": False,
+            "events": [],
+            "error": live_data.get("error")
+        }
+
+    events = live_data.get(
+        "events",
+        []
+    )
+
+    return {
+        "success": True,
+        "source": "railradar",
+        "train_number": train_number,
+        "events": events
     }
 
 
@@ -304,9 +310,12 @@ def get_live_train_context(train_number):
     # STEP 1: RailRadar
     # --------------------------------------------------------
 
-    live_data = fetch_live_train(train_number)
+    live_data = fetch_live_train(
+        train_number
+    )
 
     if not live_data["success"]:
+
         return live_data
 
     current_location = live_data[
