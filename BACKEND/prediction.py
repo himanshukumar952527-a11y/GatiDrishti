@@ -1,7 +1,7 @@
 import catboost as cb
 import pandas as pd
 
-from faeture_engineering import MODEL_FEATURE_COLUMNS
+from BACKEND.feature_engineering import MODEL_FEATURE_COLUMNS
 
 
 def predict_train_status(model_path, features):
