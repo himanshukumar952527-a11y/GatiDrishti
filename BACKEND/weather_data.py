@@ -313,7 +313,7 @@ if __name__ == "__main__":
 
         weather = result["weather"]
 
-        print("\nStation       :", weather["station_code"])
+        print("\nStation     :", weather["station_code"])
         print("Date/Time     :", weather["date_time"])
         print("Temperature   :", weather["temperature"])
         print("Precipitation :", weather["precipitation"])

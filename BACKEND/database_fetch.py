@@ -3,22 +3,12 @@
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
-
-
-# ============================================================
 # SUPABASE CONFIGURATION
-# ============================================================
 
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-if not SUPABASE_URL:
-    raise ValueError("SUPABASE_URL is missing from .env")
-
-if not SUPABASE_KEY:
-    raise ValueError("SUPABASE_KEY is missing from .env")
 
 
 supabase: Client = create_client(
@@ -27,10 +17,7 @@ supabase: Client = create_client(
 )
 
 
-# ============================================================
 # TRAIN
-# ============================================================
-
 def get_train(train_number):
     """
     Fetch train from static.static_trains.
@@ -51,10 +38,7 @@ def get_train(train_number):
 
     return response.data[0]
 
-
-# ============================================================
 # TRAIN ROUTE
-# ============================================================
 
 def get_train_route(train_id):
     """
@@ -73,10 +57,7 @@ def get_train_route(train_id):
 
     return response.data
 
-
-# ============================================================
 # STATIONS
-# ============================================================
 
 def get_stations(station_ids):
     """
@@ -98,9 +79,7 @@ def get_stations(station_ids):
     return response.data
 
 
-# ============================================================
 # TRAIN METADATA
-# ============================================================
 
 def get_train_metadata(train_id):
     """
@@ -123,9 +102,7 @@ def get_train_metadata(train_id):
     return response.data[0]
 
 
-# ============================================================
 # COMPLETE STATIC TRAIN DATA
-# ============================================================
 
 def get_complete_route(train_number):
     """
@@ -218,9 +195,7 @@ def get_complete_route(train_number):
     }
 
 
-# ============================================================
 # CURRENT + NEXT + NEXT2
-# ============================================================
 
 def get_station_context(train_number, current_sequence):
     """
@@ -261,9 +236,7 @@ def get_station_context(train_number, current_sequence):
     }
 
 
-# ============================================================
 # HELPER: NORMALIZE STATION CODE
-# ============================================================
 
 def normalize_station_code(code):
     """
@@ -276,9 +249,7 @@ def normalize_station_code(code):
     return str(code).strip().upper()
 
 
-# ============================================================
 # FINAL DATABASE FUNCTION
-# ============================================================
 
 def fetch_live_database_context(
     train_number,
@@ -324,9 +295,7 @@ def fetch_live_database_context(
             next2 = NAD
     """
 
-    # --------------------------------------------------------
     # Get train
-    # --------------------------------------------------------
 
     train = get_train(train_number)
 
@@ -338,9 +307,7 @@ def fetch_live_database_context(
 
     train_id = train["train_id"]
 
-    # --------------------------------------------------------
     # Get route
-    # --------------------------------------------------------
 
     route = get_train_route(train_id)
 
@@ -350,9 +317,7 @@ def fetch_live_database_context(
             "error": "Train route not found in database"
         }
 
-    # --------------------------------------------------------
     # Debug information
-    # --------------------------------------------------------
 
     print("\n========== DEBUG LIVE CONTEXT ==========")
 
@@ -380,12 +345,10 @@ def fetch_live_database_context(
 
     print("========================================\n")
 
-    # --------------------------------------------------------
     # Fetch station details for entire route
     #
     # This is done once instead of querying every station
     # individually.
-    # --------------------------------------------------------
 
     station_ids = list({
         station["station_id"]
@@ -400,9 +363,7 @@ def fetch_live_database_context(
         for station in stations
     }
 
-    # --------------------------------------------------------
     # Build route with station information
-    # --------------------------------------------------------
 
     enriched_route = []
 
@@ -441,10 +402,7 @@ def fetch_live_database_context(
             enriched_station = route_station
 
         enriched_route.append(enriched_station)
-
-    # --------------------------------------------------------
     # Build station-code lookup
-    # --------------------------------------------------------
 
     station_code_lookup = {}
 
@@ -457,9 +415,7 @@ def fetch_live_database_context(
         if code:
             station_code_lookup[code] = station
 
-    # --------------------------------------------------------
     # Normalize RailRadar values
-    # --------------------------------------------------------
 
     live_code = normalize_station_code(
         current_station_code
@@ -473,20 +429,15 @@ def fetch_live_database_context(
         (next_halt or {}).get("stationCode")
     )
 
-    # --------------------------------------------------------
     # Determine current scheduled station
-    # --------------------------------------------------------
 
     current_station = None
     next_station = None
     next2_station = None
 
-    # ========================================================
     # CASE 1:
     # Current RailRadar location itself is a scheduled
     # station in our database.
-    # ========================================================
-
     if live_code and live_code in station_code_lookup:
 
         current_station = station_code_lookup[live_code]
@@ -496,7 +447,6 @@ def fetch_live_database_context(
             live_code
         )
 
-    # ========================================================
     # CASE 2:
     # Current RailRadar location is an intermediate/
     # unscheduled location.
@@ -511,7 +461,6 @@ def fetch_live_database_context(
     #
     # current = BRC
     # next = RTM
-    # ========================================================
 
     elif previous_code and previous_code in station_code_lookup:
 
@@ -535,11 +484,7 @@ def fetch_live_database_context(
                 "station from RailRadar data"
             )
         }
-
-    # --------------------------------------------------------
     # Determine current DB sequence
-    # --------------------------------------------------------
-
     current_sequence = current_station.get(
         "station_sequence"
     )
@@ -554,12 +499,10 @@ def fetch_live_database_context(
             )
         }
 
-    # --------------------------------------------------------
     # Determine next station
-    #
+    
     # Prefer RailRadar nextHalt if it exists in the DB route.
     # Otherwise use DB sequence + 1.
-    # --------------------------------------------------------
 
     if next_code and next_code in station_code_lookup:
 
@@ -576,10 +519,8 @@ def fetch_live_database_context(
         ):
             next_station = candidate_next
 
-    # --------------------------------------------------------
     # Fallback:
     # Use database route ordering
-    # --------------------------------------------------------
 
     if next_station is None:
 
@@ -592,11 +533,9 @@ def fetch_live_database_context(
                 next_station = station
                 break
 
-    # --------------------------------------------------------
     # Determine next2 station
-    #
+    
     # Always based on database route ordering.
-    # --------------------------------------------------------
 
     if next_station is not None:
 
@@ -615,9 +554,7 @@ def fetch_live_database_context(
                     next2_station = station
                     break
 
-    # --------------------------------------------------------
     # Validate next station
-    # --------------------------------------------------------
 
     if next_station is None:
 
@@ -629,15 +566,11 @@ def fetch_live_database_context(
             )
         }
 
-    # --------------------------------------------------------
     # Metadata
-    # --------------------------------------------------------
 
     metadata = get_train_metadata(train_id)
 
-    # --------------------------------------------------------
     # Debug final context
-    # --------------------------------------------------------
 
     print("\n========== FINAL STATION CONTEXT ==========")
 
@@ -676,9 +609,7 @@ def fetch_live_database_context(
 
     print("===========================================\n")
 
-    # --------------------------------------------------------
     # Final result
-    # --------------------------------------------------------
 
     return {
         "success": True,
