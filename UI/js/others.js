@@ -36,8 +36,8 @@ let currentTab = "eta";
 
 // ---------- BACKEND ----------
 
-// const API_BASE = "https://gatidrishti.onrender.com";
-const API_BASE = "http://127.0.0.1:5000";  
+const API_BASE = "https://gatidrishti.onrender.com";
+// const API_BASE = "http://127.0.0.1:5000";  
 // for local testing use  127.0.01:5000 
 
 
