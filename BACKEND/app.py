@@ -2,7 +2,7 @@
 
 import os
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -1718,7 +1718,7 @@ CORS(
     resources={
         r"/api/*": {
             "origins": [
-                "https://gati-drishti.vercel.app",
+                # "https://gati-drishti.vercel.app",
                 "http://127.0.0.1:5500",
                 "http://localhost:5500"
             ]
@@ -2475,10 +2475,176 @@ def prepare_live_trains(
 # BUILD FINAL MODEL FEATURE ROW
 # ============================================================
 
+# FRONTEND WEATHER (optional weather_data from /api/predict body)
+#
+# Model weather format (same keys weather_data.fetch_station_weather
+# produces, used by create_model_features and the DB inserts):
+#   temperature, precipitation, visibility,
+#   wind_speed, wind_direction, cloud_cover
+# Units = Open-Meteo defaults: degC, mm, metres, km/h, degrees, %.
+
+FRONTEND_WEATHER_FIELDS = {
+    "temperature": ("temperature", "temperature_2m"),
+    "precipitation": ("precipitation",),
+    "visibility": ("visibility",),
+    "wind_speed": ("wind_speed", "wind_speed_10m"),
+    "wind_direction": ("wind_direction", "wind_direction_10m"),
+    "cloud_cover": ("cloud_cover",),
+}
+
+FRONTEND_WEATHER_MAX_AGE_MINUTES = 90
+FRONTEND_COORD_TOLERANCE_DEG = 0.5
+
+
+def _frontend_number(value):
+    """Real finite number or None. Never invents a default."""
+    if value is None or isinstance(value, bool) or value == "":
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if number != number or number in (float("inf"), float("-inf")):
+        return None
+    return number
+
+
+def _frontend_entry_to_weather(entry, station, label):
+    """Convert one frontend station weather entry to the backend
+    weather dict. Returns (weather, None) or (None, reason)."""
+
+    if not isinstance(entry, dict):
+        return None, f"{label}: weather entry missing"
+
+    layers = [entry]
+    for key in ("weather", "current"):
+        if isinstance(entry.get(key), dict):
+            layers.append(entry[key])
+
+    def lookup(names):
+        for layer in layers:
+            for name in names:
+                if name in layer:
+                    return layer[name]
+        return None
+
+    # Must be the weather of the station the backend selected.
+    db_code = str(station.get("station_code") or "").strip().upper()
+    sent_code = str(
+        lookup(("station_code",))
+        or (entry.get("station") or {}).get("station_code")
+        or ""
+    ).strip().upper()
+
+    if db_code and sent_code and db_code != sent_code:
+        return None, (
+            f"{label}: station mismatch "
+            f"(sent {sent_code}, expected {db_code})"
+        )
+
+    db_lat = _frontend_number(station.get("latitude"))
+    db_lon = _frontend_number(station.get("longitude"))
+    sent_lat = _frontend_number(lookup(("latitude",)))
+    sent_lon = _frontend_number(lookup(("longitude",)))
+
+    if None not in (db_lat, db_lon, sent_lat, sent_lon):
+        if (
+            abs(db_lat - sent_lat) > FRONTEND_COORD_TOLERANCE_DEG
+            or abs(db_lon - sent_lon) > FRONTEND_COORD_TOLERANCE_DEG
+        ):
+            return None, f"{label}: coordinates do not match station"
+
+    values = {}
+    for field, names in FRONTEND_WEATHER_FIELDS.items():
+        number = _frontend_number(lookup(names))
+        if number is None:
+            return None, f"{label}: missing/invalid '{field}'"
+        values[field] = number
+
+    return {
+        "station_id": station.get("station_id"),
+        "station_code": station.get("station_code"),
+        "station_name": station.get("station_name"),
+        "latitude": db_lat,
+        "longitude": db_lon,
+        "date_time": (
+            lookup(("date_time", "time", "weather_timestamp"))
+            or entry.get("fetched_at")
+        ),
+        **values
+    }, None
+
+
+def _resolve_frontend_weather(
+    weather_data,
+    current_station,
+    next_station
+):
+    """Return (current_weather, next_weather) built from the frontend
+    payload, or None (caller then uses the backend Open-Meteo fetch)."""
+
+    if not weather_data:
+        return None
+
+    try:
+
+        if not isinstance(weather_data, dict):
+            raise ValueError("weather_data must be an object")
+
+        fetched_at = weather_data.get("fetched_at")
+        if fetched_at:
+            try:
+                fetched = datetime.fromisoformat(
+                    str(fetched_at).replace("Z", "+00:00")
+                )
+                if fetched.tzinfo is None:
+                    fetched = fetched.replace(tzinfo=timezone.utc)
+                age_min = (
+                    datetime.now(timezone.utc) - fetched
+                ).total_seconds() / 60.0
+                if age_min > FRONTEND_WEATHER_MAX_AGE_MINUTES:
+                    raise ValueError(
+                        f"frontend weather is {age_min:.0f} min old"
+                    )
+            except ValueError as age_error:
+                if "min old" in str(age_error):
+                    raise
+                # Unparseable timestamp: ignore, fields still validated.
+
+        current_entry = weather_data.get("current_weather")
+        next_entry = (
+            weather_data.get("next_weather")
+            or weather_data.get("next_station_weather")
+        )
+
+        current_weather, error = _frontend_entry_to_weather(
+            current_entry, current_station, "current"
+        )
+        if error:
+            raise ValueError(error)
+
+        next_weather, error = _frontend_entry_to_weather(
+            next_entry, next_station, "next"
+        )
+        if error:
+            raise ValueError(error)
+
+        return current_weather, next_weather
+
+    except Exception as error:
+
+        logger.warning(
+            "Frontend weather rejected, using backend weather: %s",
+            error
+        )
+        return None
+
+
 def build_raw_feature_row(
     train_number,
     journey_date=None,
-    live_context=None
+    live_context=None,
+    frontend_weather=None
 ):
 
     logger.info(
@@ -2656,10 +2822,41 @@ def build_raw_feature_row(
     # )
     # STEP 4: WEATHER
 
-    weather_result = fetch_current_and_next_weather(
-        current_station=current_station,
-        next_station=next_station
+    # Frontend weather (validated) first; otherwise the existing
+    # backend Open-Meteo fetch, unchanged.
+    weather_source = "backend"
+    frontend_pair = _resolve_frontend_weather(
+        frontend_weather,
+        current_station,
+        next_station
     )
+
+    if frontend_pair:
+
+        weather_source = "frontend"
+
+        weather_result = {
+            "success": True,
+            "current_weather": {
+                "success": True,
+                "source": "frontend",
+                "weather": frontend_pair[0]
+            },
+            "next_station_weather": {
+                "success": True,
+                "source": "frontend",
+                "weather": frontend_pair[1]
+            }
+        }
+
+    else:
+
+        weather_result = fetch_current_and_next_weather(
+            current_station=current_station,
+            next_station=next_station
+        )
+
+    logger.info("Weather source: %s", weather_source)
 
     # Detailed weather failure handling
     if not weather_result.get("success", False):
@@ -2925,8 +3122,83 @@ def build_raw_feature_row(
 
             "next":
                 next_station_weather
-        }
+        },
+
+        "weather_source":
+            weather_source
     }
+
+
+# STATIONS NEEDED FOR FRONTEND WEATHER
+@app.route(
+    "/api/predict/stations",
+    methods=["POST"]
+)
+def predict_stations():
+    """Current + next station (real DB coordinates) so the frontend
+    can fetch their weather before calling /api/predict."""
+
+    try:
+
+        body = request.get_json(silent=True) or {}
+
+        train_number = str(
+            body.get("train_number") or ""
+        ).strip()
+
+        if not train_number:
+            return jsonify({
+                "success": False,
+                "error": "train_number is required"
+            }), 400
+
+        status = get_train_journey_status(
+            train_number=train_number,
+            journey_date=body.get("date")
+        )
+
+        detection = status["detection"]
+
+        if not detection["is_prediction_allowed"]:
+            return jsonify({
+                "success": False,
+                "error": "Prediction not available",
+                "journey_status": detection["journey_status"]
+            })
+
+        current_station = status.get("current_station")
+        next_station = status.get("next_station")
+
+        if not current_station or not next_station:
+            return jsonify({
+                "success": False,
+                "error": "Current or next station unavailable"
+            })
+
+        def public(station):
+            return {
+                "station_id": station.get("station_id"),
+                "station_code": station.get("station_code"),
+                "station_name": station.get("station_name"),
+                "latitude": station.get("latitude"),
+                "longitude": station.get("longitude")
+            }
+
+        return jsonify({
+            "success": True,
+            "current_station": public(current_station),
+            "next_station": public(next_station)
+        })
+
+    except Exception as error:
+
+        logger.exception("Station lookup for weather failed")
+
+        return jsonify({
+            "success": False,
+            "error": "Unable to resolve stations",
+            "details": str(error)
+        }), 500
 
 
 # PREDICTION API
@@ -2951,6 +3223,11 @@ def predict():
 
         journey_date = body.get(
             "date"
+        )
+
+        # Optional frontend weather (validated in build_raw_feature_row)
+        frontend_weather = body.get(
+            "weather_data"
         )
 
         
@@ -3038,7 +3315,9 @@ def predict():
                 journey_status[
                     "live_context"
                 ]
-            )
+            ),
+
+            frontend_weather=frontend_weather
         )
 
         features = pipeline[
@@ -3789,7 +4068,12 @@ def predict():
                 weather_id,
 
             "next_weather_id":
-                next_weather_id
+                next_weather_id,
+
+            "weather_source":
+                pipeline.get(
+                    "weather_source"
+                )
         })
 
     except Exception as error:

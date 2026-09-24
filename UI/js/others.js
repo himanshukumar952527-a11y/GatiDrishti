@@ -36,8 +36,8 @@ let currentTab = "eta";
 
 // ---------- BACKEND ----------
 
-const API_BASE = "https://gatidrishti.onrender.com";
-// const API_BASE = "http://127.0.0.1:5000";  
+// const API_BASE = "https://gatidrishti.onrender.com";
+const API_BASE = "http://127.0.0.1:5000";  
 // for local testing use  127.0.01:5000 
 
 
@@ -1136,6 +1136,124 @@ function isPredictionAllowed(data) {
   return !NO_PREDICTION_STATUSES.includes(data.journey_status);
 }
 
+// ------------------------------------------------------------
+// FRONTEND WEATHER HELPER (weather.js)
+// ------------------------------------------------------------
+// The current / next station are decided by the backend from live
+// train data, so they are NOT known before /api/predict. This asks
+// the backend for those two stations (with their real database
+// coordinates), then fetches Open-Meteo weather for them through
+// window.GatiDrishtiWeather. Never throws; returns null on any
+// problem so the prediction request still runs (backend fallback).
+const WEATHER_STATIONS_TIMEOUT_MS = 30000;
+
+function hasValidLatLng(station) {
+  if (!station) return false;
+  const lat = Number(station.latitude);
+  const lon = Number(station.longitude);
+  return (
+    station.latitude !== null && station.latitude !== "" &&
+    station.longitude !== null && station.longitude !== "" &&
+    Number.isFinite(lat) && Number.isFinite(lon) &&
+    Math.abs(lat) <= 90 && Math.abs(lon) <= 180
+  );
+}
+
+async function getFrontendWeatherForPrediction(trainNumber) {
+
+  if (
+    !window.GatiDrishtiWeather ||
+    typeof window.GatiDrishtiWeather.getPredictionWeatherData !== "function"
+  ) {
+    console.warn(
+      "[GatiDrishti] Frontend weather unavailable: " +
+      "weather.js is not loaded (check script order)."
+    );
+    return null;
+  }
+
+  const stationsController = new AbortController();
+  const stationsTimeoutId = setTimeout(
+    () => stationsController.abort(),
+    WEATHER_STATIONS_TIMEOUT_MS
+  );
+
+  try {
+
+    const stationsResponse = await fetch(
+      `${API_BASE}/api/predict/stations`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          train_number: String(trainNumber),
+          date: getLocalDateString()
+        }),
+        signal: stationsController.signal
+      }
+    );
+
+    const stationInfo = await stationsResponse.json().catch(() => null);
+
+    if (!stationsResponse.ok || !stationInfo || !stationInfo.success) {
+      console.warn(
+        "[GatiDrishti] Frontend weather unavailable: " +
+        "current/next station not provided by backend.",
+        stationInfo && (stationInfo.error || stationInfo.details)
+      );
+      return null;
+    }
+
+    const currentStation = stationInfo.current_station;
+    const nextStation = stationInfo.next_station;
+
+    if (!hasValidLatLng(currentStation) || !hasValidLatLng(nextStation)) {
+      console.warn(
+        "[GatiDrishti] Frontend weather unavailable: missing or " +
+        "invalid station coordinates in the station database.",
+        { currentStation, nextStation }
+      );
+      return null;
+    }
+
+    const weatherResult =
+      await window.GatiDrishtiWeather.getPredictionWeatherData(
+        currentStation,
+        nextStation
+      );
+
+    if (weatherResult && weatherResult.success && weatherResult.data) {
+      console.log(
+        "[GatiDrishti] Frontend weather data:",
+        weatherResult.data
+      );
+      return weatherResult.data;
+    }
+
+    console.warn(
+      "[GatiDrishti] Frontend weather unavailable:",
+      weatherResult && weatherResult.error
+    );
+    return null;
+
+  } catch (weatherError) {
+
+    console.warn(
+      "[GatiDrishti] Weather preparation failed:",
+      weatherError && weatherError.name === "AbortError"
+        ? "station lookup timed out"
+        : weatherError
+    );
+    return null;
+
+  } finally {
+
+    clearTimeout(stationsTimeoutId);
+
+  }
+
+}
+
 async function attachPrediction(trainData) {
 
   const trainNumber =
@@ -1152,6 +1270,24 @@ async function attachPrediction(trainData) {
       "Train number missing.";
 
     return;
+  }
+
+  // --------------------------------------------------------
+  // FRONTEND WEATHER DATA (weather.js) - optional
+  // Runs BEFORE the prediction timeout starts, so it cannot
+  // use up the prediction request's time budget.
+  // --------------------------------------------------------
+
+  let frontendWeatherData = null;
+
+  try {
+    frontendWeatherData =
+      await getFrontendWeatherForPrediction(trainNumber);
+  } catch (weatherError) {
+    console.warn(
+      "[GatiDrishti] Weather preparation failed:",
+      weatherError
+    );
   }
 
   const controller = new AbortController();
@@ -1183,7 +1319,12 @@ async function attachPrediction(trainData) {
 
         body: JSON.stringify({
           train_number: String(trainNumber),
-          date: getLocalDateString()
+          date: getLocalDateString(),
+          ...(
+            frontendWeatherData
+              ? { weather_data: frontendWeatherData }
+              : {}
+          )
         }),
 
         signal: controller.signal
