@@ -8,9 +8,7 @@ from dotenv import load_dotenv
 from database_function import insert_weather_data
 
 
-# ============================================================
 # CONFIGURATION
-# ============================================================
 
 load_dotenv()
 
@@ -21,9 +19,7 @@ REQUEST_TIMEOUT = 15
 TIMEZONE = "Asia/Kolkata"
 
 
-# ============================================================
 # SAFE FLOAT
-# ============================================================
 
 def safe_float(value, default=0.0):
     try:
@@ -34,9 +30,7 @@ def safe_float(value, default=0.0):
         return default
 
 
-# ============================================================
 # FETCH WEATHER FOR ONE STATION
-# ============================================================
 
 def fetch_station_weather(station):
     """
@@ -109,9 +103,7 @@ def fetch_station_weather(station):
             "details": str(error)
         }
 
-    # --------------------------------------------------------
     # HTTP ERROR
-    # --------------------------------------------------------
 
     if response.status_code != 200:
 
@@ -125,9 +117,7 @@ def fetch_station_weather(station):
             "details": response.text
         }
 
-    # --------------------------------------------------------
     # JSON
-    # --------------------------------------------------------
 
     try:
 
@@ -151,9 +141,7 @@ def fetch_station_weather(station):
             "error": "Open-Meteo returned empty current weather"
         }
 
-    # --------------------------------------------------------
     # NORMALIZED WEATHER DATA
-    # --------------------------------------------------------
 
     weather = {
         "station_id": station.get("station_id"),
@@ -190,9 +178,7 @@ def fetch_station_weather(station):
         )
     }
 
-    # --------------------------------------------------------
     # DATABASE INSERT
-    # --------------------------------------------------------
 
     db_insert = None
 
@@ -218,9 +204,7 @@ def fetch_station_weather(station):
             "error": str(error)
         }
 
-    # --------------------------------------------------------
     # FINAL RESPONSE
-    # --------------------------------------------------------
 
     return {
         "success": True,
@@ -242,9 +226,7 @@ def fetch_station_weather(station):
     }
 
 
-# ============================================================
 # CURRENT + NEXT STATION WEATHER
-# ============================================================
 
 def fetch_current_and_next_weather(
     current_station,
@@ -288,11 +270,7 @@ def fetch_current_and_next_weather(
         "next_station_weather": next_weather
     }
 
-
-# ============================================================
 # SIMPLE NEXT-STATION HELPER
-# ============================================================
-
 def fetch_next_station_weather(next_station):
     """
     Backward-compatible helper.
@@ -303,9 +281,7 @@ def fetch_next_station_weather(next_station):
     return fetch_station_weather(next_station)
 
 
-# ============================================================
 # TEST
-# ============================================================
 
 if __name__ == "__main__":
 

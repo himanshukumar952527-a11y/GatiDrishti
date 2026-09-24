@@ -56,11 +56,7 @@ IMPORTANT
 
 from datetime import datetime
 
-
-# ============================================================
 # 1. FINAL MODEL FEATURE ORDER
-# ============================================================
-
 MODEL_FEATURE_COLUMNS = [
     "arr_delay",
     "dep_delay",
@@ -93,11 +89,7 @@ MODEL_FEATURE_COLUMNS = [
 
 TARGET_COLUMN = "next_station_arr_delay"
 
-
-# ============================================================
 # 2. SAFE VALUE HELPERS
-# ============================================================
-
 def safe_float(value, default=0.0):
     if value is None or value == "":
         return default
@@ -130,11 +122,7 @@ def first_value(data, *keys, default=None):
 
     return default
 
-
-# ============================================================
 # 3. DATETIME HELPERS
-# ============================================================
-
 def parse_datetime(value):
     """
     Parse the datetime formats used by the project.
@@ -184,11 +172,7 @@ def minutes_difference(later, earlier):
         later_dt - earlier_dt
     ).total_seconds() / 60.0
 
-
-# ============================================================
 # 4. CURRENT STATION DELAYS
-# ============================================================
-
 def calculate_arr_delay(
     actual_arrival,
     scheduled_arrival
@@ -231,11 +215,7 @@ def calculate_dep_delay(
 
     return 0.0 if value is None else value
 
-
-# ============================================================
 # 5. CURRENT ACTUAL HALT
-# ============================================================
-
 def calculate_actual_halt(
     actual_arrival,
     actual_departure
@@ -253,11 +233,7 @@ def calculate_actual_halt(
 
     return 0.0 if value is None else value
 
-
-# ============================================================
 # 6. DAY / NIGHT
-# ============================================================
-
 def calculate_day_night(timestamp=None):
     """
     Project encoding:
@@ -284,21 +260,19 @@ def calculate_day_night(timestamp=None):
 
     return 1
 
-
-# ============================================================
 # 7. TRAIN CATEGORY ENCODING
-# ============================================================
-
 def encode_category(category=None, train_type=None):
     """
     Return the category_encoding used by the trained model.
 
-    The existing confirmed training decision is:
-        missing train_type -> mail_express
-        mail_express -> 2
+    Training mapping:
+        1 = Passenger/local type
+        2 = Mail/Express type
+        3 = Superfast/premium variants
+        4 = High-speed/premium trains
+        5 = Bullet Train / HSR
 
-    Other mappings should be added only when they exactly match
-    the encoding used during model training.
+    Missing train_type -> mail_express -> 2
     """
 
     value = category
@@ -327,9 +301,45 @@ def encode_category(category=None, train_type=None):
         .replace(" ", "_")
     )
 
-    # Confirmed training mapping
     category_encoding = {
+        # 1
+        "passenger": 1,
+        "memu": 1,
+        "demu": 1,
+        "emu": 1,
+
+        # 2
         "mail_express": 2,
+        "express": 2,
+        "antyodaya": 2,
+        "devbhoomi_express": 2,
+        "special": 2,
+        "festival_special": 2,
+        "holiday_special": 2,
+        "other": 2,
+
+        # 3
+        "duronto": 3,
+        "jan_shatabdi": 3,
+        "humsafar": 3,
+        "garib_rath": 3,
+        "sampooran_kranti": 3,
+        "sampark_kranti": 3,
+        "superfast": 3,
+        "suvidha": 3,
+        "maharaja_express": 3,
+        "tourist_special": 3,
+
+        # 4
+        "rajdhani": 4,
+        "shatabdi": 4,
+        "gatimaan": 4,
+        "vande_bharat": 4,
+        "vande_bharat_sleeper": 4,
+        "tejas": 4,
+
+        # 5
+        "bullet_train_hsr": 5,
     }
 
     if normalized in category_encoding:
@@ -339,12 +349,7 @@ def encode_category(category=None, train_type=None):
         f"Unknown category '{value}'. "
         "Use the exact category_encoding from training."
     )
-
-
-# ============================================================
 # 8. ROUTE DISTANCE FEATURES
-# ============================================================
-
 def calculate_distance_from_source(current_station):
     """
     Model feature:
@@ -414,11 +419,7 @@ def calculate_next2_station_distance(
 
     return next2_distance - current_distance
 
-
-# ============================================================
 # 9. CONGESTION
-# ============================================================
-
 CONGESTION_FEATURES = [
     "total_active_train",
     "trains_ahead",
@@ -462,11 +463,7 @@ def normalize_congestion(congestion):
         ),
     }
 
-
-# ============================================================
 # 10. WEATHER FEATURES
-# ============================================================
-
 def get_weather_score(weather):
     """
     Weather score should normally be produced by the same
@@ -569,11 +566,7 @@ def get_weather_context_value(
         default
     )
 
-
-# ============================================================
 # 11. MAIN FEATURE BUILDER
-# ============================================================
-
 def build_features(
     train,
     metadata,
@@ -589,6 +582,14 @@ def build_features(
 ):
     """
     Build the EXACT 27 model features.
+
+    Live delay source:
+        RailRadar delayArrival    -> arr_delay
+        RailRadar delayDeparture  -> dep_delay
+
+    Historical/fallback delay source:
+        actual_arrival - scheduled_arrival
+        actual_departure - scheduled_departure
 
     No extra model features are returned.
     """
@@ -607,9 +608,7 @@ def build_features(
             "next_station is required for model prediction."
         )
 
-    # ========================================================
     # CURRENT STATION SCHEDULE / ACTUAL DATA
-    # ========================================================
 
     current_scheduled_arrival = first_value(
         current_station,
@@ -635,8 +634,8 @@ def build_features(
         "actualDeparture"
     )
 
-    # If live data contains the current station actual values,
-    # prefer them.
+    # If live data contains actual arrival/departure,
+    # use them as fallback values.
     if current_actual_arrival is None:
         current_actual_arrival = first_value(
             live_data,
@@ -651,28 +650,67 @@ def build_features(
             "actualDeparture"
         )
 
-    # Current station delay features
-    arr_delay = calculate_arr_delay(
-        current_actual_arrival,
-        current_scheduled_arrival
+    # CURRENT STATION DELAY FEATURES
+    # LIVE RAILRADAR DELAYS HAVE PRIORITY
+    live_arr_delay = first_value(
+        live_data,
+        "arr_delay"
     )
 
-    dep_delay = calculate_dep_delay(
-        current_actual_departure,
-        current_scheduled_departure,
-        train_on_station=train_on_station
+    live_dep_delay = first_value(
+        live_data,
+        "dep_delay"
     )
 
-    # Current actual halt
+    # ARRIVAL DELAY
+
+    if live_arr_delay is not None:
+
+        arr_delay = safe_float(
+            live_arr_delay
+        )
+
+    else:
+
+        # Historical/fallback calculation:
+        #
+        # actual_arrival - scheduled_arrival
+
+        arr_delay = calculate_arr_delay(
+            current_actual_arrival,
+            current_scheduled_arrival
+        )
+
+    # DEPARTURE DELAY
+
+    if live_dep_delay is not None:
+
+        dep_delay = safe_float(
+            live_dep_delay
+        )
+
+    else:
+
+        # Historical/fallback calculation:
+        #
+        # actual_departure - scheduled_departure
+        #
+        # If train is currently at station and no live
+        # departure delay is available, existing logic
+        # returns 0.
+
+        dep_delay = calculate_dep_delay(
+            current_actual_departure,
+            current_scheduled_departure,
+            train_on_station=train_on_station
+        )
+
+    # CURRENT ACTUAL HALT
     act_halt_current_station = calculate_actual_halt(
         current_actual_arrival,
         current_actual_departure
     )
-
-    # ========================================================
     # CURRENT STATION LOCATION / ROUTE
-    # ========================================================
-
     latitude = safe_float(
         first_value(
             current_station,
@@ -698,10 +736,7 @@ def build_features(
     distance = calculate_distance_from_source(
         current_station
     )
-
-    # ========================================================
     # NEXT / NEXT2 DISTANCE
-    # ========================================================
 
     next_station_distance_value = (
         calculate_next_station_distance(
@@ -716,11 +751,7 @@ def build_features(
             next2_station
         )
     )
-
-    # ========================================================
     # NEXT STATION LOCATION
-    # ========================================================
-
     next_station_latitude = safe_float(
         first_value(
             next_station,
@@ -734,11 +765,7 @@ def build_features(
             "longitude"
         )
     )
-
-    # ========================================================
     # HALT FEATURES
-    # ========================================================
-
     sch_halt_current_station = safe_float(
         first_value(
             current_station,
@@ -752,11 +779,7 @@ def build_features(
             "scheduled_halt"
         )
     )
-
-    # ========================================================
     # TRAIN FEATURES
-    # ========================================================
-
     avg_speed = safe_float(
         first_value(
             metadata,
@@ -785,19 +808,11 @@ def build_features(
             "trainType"
         )
     )
-
-    # ========================================================
     # CONGESTION FEATURES
-    # ========================================================
-
     congestion_values = normalize_congestion(
         congestion
     )
-
-    # ========================================================
     # WEATHER FEATURES
-    # ========================================================
-
     weather_score = get_weather_score(
         current_weather
     )
@@ -806,11 +821,12 @@ def build_features(
         next_station_weather
     )
 
-    # These four values are kept as explicit inputs because they
-    # were part of the final trained feature set.
+    # These four values are kept as explicit inputs because
+    # they were part of the final trained feature set.
     #
     # The weather pipeline should provide them using the same
     # calculation used during training.
+
     weather_distance = get_weather_context_value(
         current_weather,
         "weather_distance"
@@ -838,12 +854,9 @@ def build_features(
             "next_weather_avg_speed"
         )
     )
-
-    # ========================================================
     # DAY / NIGHT
-    # ========================================================
-
     if prediction_time is None:
+
         prediction_time = first_value(
             live_data,
             "last_updated_at",
@@ -852,19 +865,17 @@ def build_features(
         )
 
     if prediction_time is None:
+
         prediction_time = current_actual_departure
 
     if prediction_time is None:
+
         prediction_time = current_actual_arrival
 
     day_night = calculate_day_night(
         prediction_time
     )
-
-    # ========================================================
     # EXACT FINAL 27 FEATURES
-    # ========================================================
-
     features = {
 
         "arr_delay":
@@ -956,21 +967,16 @@ def build_features(
         "next_weather_avg_speed":
             next_weather_avg_speed,
     }
-
-    # Safety check: absolutely no unexpected model features.
+    # SAFETY CHECK
     if list(features.keys()) != MODEL_FEATURE_COLUMNS:
+
         raise RuntimeError(
             "Feature dictionary does not match the final "
             "model feature order."
         )
 
     return features
-
-
-# ============================================================
 # 12. MODEL INPUT
-# ============================================================
-
 def prepare_model_input(features):
     """
     Convert the final feature dictionary into the exact
@@ -998,12 +1004,7 @@ def prepare_model_input(features):
     ]
 
     return [values]
-
-
-# ============================================================
 # 13. TARGET
-# ============================================================
-
 def calculate_target_delay(
     next_actual_arrival,
     next_scheduled_arrival
@@ -1028,11 +1029,7 @@ def calculate_target_delay(
 
     return value
 
-
-# ============================================================
 # 14. TRAINING ROW
-# ============================================================
-
 def make_training_row(
     features,
     next_actual_arrival,
@@ -1055,12 +1052,7 @@ def make_training_row(
     )
 
     return row
-
-
-# ============================================================
 # 15. REMAINING JOURNEY STATIONS
-# ============================================================
-
 def get_remaining_stations(
     route,
     current_sequence
@@ -1135,11 +1127,7 @@ def get_next_station_pair(
 
     return next_station, next2_station
 
-
-# ============================================================
 # 16. JOURNEY PREDICTION PLAN
-# ============================================================
-
 def create_journey_prediction_plan(
     route,
     current_sequence
@@ -1232,11 +1220,7 @@ def create_journey_prediction_plan(
 
     return plan
 
-
-# ============================================================
 # 17. SIMPLE CONTEXT WRAPPER
-# ============================================================
-
 def create_model_features(
     context,
     live_data,
@@ -1285,10 +1269,7 @@ def create_model_features(
     )
 
 
-# ============================================================
 # 18. TEST
-# ============================================================
-
 if __name__ == "__main__":
 
     print(

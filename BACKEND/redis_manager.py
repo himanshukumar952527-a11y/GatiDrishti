@@ -8,9 +8,7 @@ import redis
 from dotenv import load_dotenv
 
 
-# ============================================================
 # CONFIGURATION
-# ============================================================
 
 load_dotenv()
 
@@ -22,20 +20,14 @@ if not REDIS_URL:
     )
 
 
-# ============================================================
 # REDIS CLIENT
-# ============================================================
-
 redis_client = redis.from_url(
     REDIS_URL,
     decode_responses=True
 )
 
 
-# ============================================================
 # CONNECTION TEST
-# ============================================================
-
 def test_redis_connection():
     """
     Test Redis connection.
@@ -49,11 +41,7 @@ def test_redis_connection():
 
         return False
 
-
-# ============================================================
 # SET JSON DATA
-# ============================================================
-
 def set_json(key, data, expiry_seconds=None):
     """
     Store Python dictionary/list as JSON in Redis.
@@ -82,10 +70,7 @@ def set_json(key, data, expiry_seconds=None):
     return True
 
 
-# ============================================================
 # GET JSON DATA
-# ============================================================
-
 def get_json(key):
     """
     Retrieve JSON data from Redis.
@@ -99,10 +84,7 @@ def get_json(key):
     return json.loads(value)
 
 
-# ============================================================
 # DELETE KEY
-# ============================================================
-
 def delete_key(key):
     """
     Delete Redis key.
@@ -111,9 +93,7 @@ def delete_key(key):
     return redis_client.delete(key)
 
 
-# ============================================================
 # BASIC TEST
-# ============================================================
 
 if __name__ == "__main__":
 

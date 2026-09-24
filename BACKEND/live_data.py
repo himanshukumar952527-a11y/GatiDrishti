@@ -1,3 +1,5 @@
+
+
 # BACKEND/live_data.py
 
 import os
@@ -6,11 +8,7 @@ from dotenv import load_dotenv
 
 from database_fetch import fetch_live_database_context
 
-
-# ============================================================
 # CONFIGURATION
-# ============================================================
-
 load_dotenv()
 
 RAILRADAR_API_KEY = os.getenv("RAILRADAR_API_KEY")
@@ -22,16 +20,23 @@ if not RAILRADAR_API_KEY:
 
 RAILRADAR_BASE_URL = "https://api.railradar.in/v1"
 
-
-# ============================================================
 # FETCH LIVE TRAIN DATA
-# ============================================================
-
 def fetch_live_train(train_number):
     """
     Fetch real-time train data from RailRadar.
 
     Only ONE API request is made.
+
+    Important live delay fields:
+
+        delayArrival
+            -> current station arr_delay
+
+        delayDeparture
+            -> current station dep_delay
+
+    RailRadar delayMinutes is kept separately as the
+    overall/current train delay indicator.
     """
 
     url = (
@@ -60,11 +65,7 @@ def fetch_live_train(train_number):
             "error": "RailRadar request failed",
             "details": str(error)
         }
-
-    # --------------------------------------------------------
     # HTTP ERROR HANDLING
-    # --------------------------------------------------------
-
     if response.status_code == 401:
 
         return {
@@ -108,11 +109,7 @@ def fetch_live_train(train_number):
             ),
             "details": response.text
         }
-
-    # --------------------------------------------------------
     # PARSE JSON
-    # --------------------------------------------------------
-
     try:
 
         payload = response.json()
@@ -147,11 +144,7 @@ def fetch_live_train(train_number):
             "source": "railradar",
             "error": "RailRadar returned empty data"
         }
-
-    # --------------------------------------------------------
     # CURRENT LOCATION
-    # --------------------------------------------------------
-
     current_location = data.get(
         "currentLocation"
     ) or {}
@@ -163,12 +156,83 @@ def fetch_live_train(train_number):
     current_sequence = current_location.get(
         "sequence"
     )
-
-    # --------------------------------------------------------
     # NEXT HALT
-    # --------------------------------------------------------
-
     next_halt = data.get("nextHalt") or {}
+    # ROUTE DATA
+    route = data.get(
+        "route"
+    ) or []
+    # FIND CURRENT STATION IN RAILRADAR ROUTE
+    current_route_record = None
+
+    # First try:
+    # station code + sequence
+    for route_station in route:
+
+        if (
+            route_station.get("stationCode")
+            == current_station_code
+            and route_station.get("sequence")
+            == current_sequence
+        ):
+
+            current_route_record = route_station
+            break
+    # FALLBACK:
+    # station code only
+    if current_route_record is None:
+
+        for route_station in route:
+
+            if (
+                route_station.get("stationCode")
+                == current_station_code
+            ):
+
+                current_route_record = route_station
+                break
+
+    # CURRENT ARRIVAL / DEPARTURE DELAY
+
+    current_arr_delay = None
+    current_dep_delay = None
+
+    if current_route_record:
+
+        current_arr_delay = current_route_record.get(
+            "delayArrival"
+        )
+
+        current_dep_delay = current_route_record.get(
+            "delayDeparture"
+        )
+
+    # DEBUG INFORMATION
+
+    # print("\n----- RAILRADAR LIVE DATA ------")
+
+    # print("\nCurrent Location:")
+    # print(current_location)
+
+    # print("\nPrevious Halt:")
+    # print(data.get("previousHalt"))
+
+    # print("\nNext Halt:")
+    # print(next_halt)
+
+    # print("\nCurrent Route Record:")
+    # print(current_route_record)
+
+    # print("\nCurrent Arrival Delay:")
+    # print(current_arr_delay)
+
+    # print("\nCurrent Departure Delay:")
+    # print(current_dep_delay)
+
+    # print("\nOverall Delay Minutes:")
+    # print(data.get("delayMinutes"))
+
+    # print("\n----------------------------------------------\n")
 
     # --------------------------------------------------------
     # FINAL LIVE DATA
@@ -200,32 +264,62 @@ def fetch_live_train(train_number):
             "status"
         ),
 
+        # Overall/current train delay.
+        # This is NOT used as arr_delay + dep_delay.
         "delay_minutes": data.get(
             "delayMinutes"
         ),
 
+        # CURRENT MODEL DELAY FEATURES
+
+        # RailRadar route.delayArrival
+        "arr_delay": current_arr_delay,
+
+        # RailRadar route.delayDeparture
+        "dep_delay": current_dep_delay,
+
+        # CURRENT LOCATION
+
         "current_location": {
-            "station_code": current_station_code,
-            "sequence": current_sequence,
-            "status": current_location.get(
-                "status"
-            ),
-            "is_halt": current_location.get(
-                "isHalt"
-            ),
-            "is_actual_position": current_location.get(
-                "isActualPosition"
-            ),
-            "segment_progress": current_location.get(
-                "segmentProgress"
-            ),
-            "speed_kmh": current_location.get(
-                "speedKmh"
-            ),
-            "bearing_degrees": current_location.get(
-                "bearingDegrees"
-            )
+
+            "station_code":
+                current_station_code,
+
+            "sequence":
+                current_sequence,
+
+            "status":
+                current_location.get(
+                    "status"
+                ),
+
+            "is_halt":
+                current_location.get(
+                    "isHalt"
+                ),
+
+            "is_actual_position":
+                current_location.get(
+                    "isActualPosition"
+                ),
+
+            "segment_progress":
+                current_location.get(
+                    "segmentProgress"
+                ),
+
+            "speed_kmh":
+                current_location.get(
+                    "speedKmh"
+                ),
+
+            "bearing_degrees":
+                current_location.get(
+                    "bearingDegrees"
+                )
         },
+
+        # HALTS
 
         "previous_halt": data.get(
             "previousHalt"
@@ -233,16 +327,16 @@ def fetch_live_train(train_number):
 
         "next_halt": next_halt,
 
-        # RailRadar operational exceptions/events
+        # EVENTS / EXCEPTIONS
+
         "events": data.get(
             "exceptions",
             []
         ),
 
-        "route": data.get(
-            "route",
-            []
-        ),
+        # COMPLETE RAILRADAR ROUTE
+
+        "route": route,
 
         "is_live": data.get(
             "isLive"
@@ -250,9 +344,7 @@ def fetch_live_train(train_number):
     }
 
 
-# ============================================================
 # FETCH TRAIN EVENTS
-# ============================================================
 
 def fetch_live_events(train_number):
     """
@@ -266,7 +358,9 @@ def fetch_live_events(train_number):
         - other RailRadar exceptions
     """
 
-    live_data = fetch_live_train(train_number)
+    live_data = fetch_live_train(
+        train_number
+    )
 
     if not live_data["success"]:
 
@@ -289,26 +383,24 @@ def fetch_live_events(train_number):
     }
 
 
-# ============================================================
 # COMPLETE LIVE TRAIN CONTEXT
-# ============================================================
 
 def get_live_train_context(train_number):
     """
     Complete pipeline:
 
-        RailRadar
-            ↓
+        RailRadar ->
+            
         current station
-            ↓
+            ->
+        current arr_delay / dep_delay
+            ->
         Supabase
-            ↓
+            ->
         current + next + next2
     """
 
-    # --------------------------------------------------------
     # STEP 1: RailRadar
-    # --------------------------------------------------------
 
     live_data = fetch_live_train(
         train_number
@@ -330,16 +422,18 @@ def get_live_train_context(train_number):
         "sequence"
     ]
 
-    # --------------------------------------------------------
     # STEP 2: Database
-    # --------------------------------------------------------
 
     database_data = fetch_live_database_context(
         train_number=train_number,
-
         current_station_code=current_station_code,
-
-        current_station_sequence=current_sequence
+        current_station_sequence=current_sequence,
+        previous_halt=live_data.get(
+            "previous_halt"
+        ),
+        next_halt=live_data.get(
+            "next_halt"
+        )
     )
 
     if not database_data["success"]:
@@ -354,9 +448,7 @@ def get_live_train_context(train_number):
             "live_data": live_data
         }
 
-    # --------------------------------------------------------
-    # STEP 3: Combine
-    # --------------------------------------------------------
+    # STEP 3: COMBINE
 
     return {
         "success": True,
@@ -367,9 +459,7 @@ def get_live_train_context(train_number):
     }
 
 
-# ============================================================
 # TEST
-# ============================================================
 
 if __name__ == "__main__":
 
@@ -387,9 +477,7 @@ if __name__ == "__main__":
         train_number
     )
 
-    # --------------------------------------------------------
     # ERROR
-    # --------------------------------------------------------
 
     if not result["success"]:
 
@@ -402,68 +490,79 @@ if __name__ == "__main__":
 
         exit()
 
-    # --------------------------------------------------------
     # LIVE DATA
-    # --------------------------------------------------------
 
     live = result["live"]
 
-    location = live["current_location"]
+    location = live[
+        "current_location"
+    ]
 
-    print("\n" + "=" * 70)
-    print("LIVE TRAIN INFORMATION")
-    print("=" * 70)
+    # print("\n" + "=" * 70)
+    # print("LIVE TRAIN INFORMATION")
+    # print("=" * 70)
 
-    print(
-        "Train Number    :",
-        live["train_number"]
-    )
+    # print(
+    #     "Train Number    :",
+    #     live["train_number"]
+    # )
 
-    print(
-        "Train Name      :",
-        live["train_name"]
-    )
+    # print(
+    #     "Train Name      :",
+    #     live["train_name"]
+    # )
 
-    print(
-        "Status          :",
-        live["status"]
-    )
+    # print(
+    #     "Status          :",
+    #     live["status"]
+    # )
 
-    print(
-        "Delay           :",
-        live["delay_minutes"],
-        "minutes"
-    )
+    # print(
+    #     "Overall Delay   :",
+    #     live["delay_minutes"],
+    #     "minutes"
+    # )
 
-    print(
-        "Last Updated    :",
-        live["last_updated_at"]
-    )
+    # print(
+    #     "Arrival Delay   :",
+    #     live["arr_delay"],
+    #     "minutes"
+    # )
 
-    print(
-        "Current Station :",
-        location["station_code"]
-    )
+    # print(
+    #     "Departure Delay :",
+    #     live["dep_delay"],
+    #     "minutes"
+    # )
 
-    print(
-        "Sequence        :",
-        location["sequence"]
-    )
+    # print(
+    #     "Last Updated    :",
+    #     live["last_updated_at"]
+    # )
 
-    print(
-        "Speed           :",
-        location["speed_kmh"],
-        "km/h"
-    )
+    # print(
+    #     "Current Station :",
+    #     location["station_code"]
+    # )
 
-    print(
-        "Segment Progress:",
-        location["segment_progress"]
-    )
+    # print(
+    #     "Sequence        :",
+    #     location["sequence"]
+    # )
+
+    # print(
+    #     "Speed           :",
+    #     location["speed_kmh"],
+    #     "km/h"
+    # )
+
+    # print(
+    #     "Segment Progress:",
+    #     location["segment_progress"]
+    # )
 
     # --------------------------------------------------------
     # DATABASE DATA
-    # --------------------------------------------------------
 
     database = result["database"]
 
@@ -479,110 +578,110 @@ if __name__ == "__main__":
         "next2_station"
     ]
 
-    print("\n" + "=" * 70)
-    print("DATABASE ROUTE CONTEXT")
-    print("=" * 70)
+    # print("\n" + "=" * 70)
+    # print("DATABASE ROUTE CONTEXT")
+    # print("=" * 70)
 
-    print("\nCURRENT STATION")
+    # print("\nCURRENT STATION")
 
-    if current:
+    # if current:
 
-        print(
-            current["station_code"],
-            "-",
-            current["station_name"]
-        )
+    #     print(
+    #         current["station_code"],
+    #         "-",
+    #         current["station_name"]
+    #     )
 
-        print(
-            "Sequence:",
-            current["station_sequence"]
-        )
+    #     print(
+    #         "Sequence:",
+    #         current["station_sequence"]
+    #     )
 
-        print(
-            "Latitude:",
-            current["latitude"]
-        )
+    #     print(
+    #         "Latitude:",
+    #         current["latitude"]
+    #     )
 
-        print(
-            "Longitude:",
-            current["longitude"]
-        )
+    #     print(
+    #         "Longitude:",
+    #         current["longitude"]
+    #     )
 
-    print("\nNEXT STATION")
+    # print("\nNEXT STATION")
 
-    if next_station:
+    # if next_station:
 
-        print(
-            next_station["station_code"],
-            "-",
-            next_station["station_name"]
-        )
+    #     print(
+    #         next_station["station_code"],
+    #         "-",
+    #         next_station["station_name"]
+    #     )
 
-        print(
-            "Sequence:",
-            next_station["station_sequence"]
-        )
+    #     print(
+    #         "Sequence:",
+    #         next_station["station_sequence"]
+    #     )
 
-        print(
-            "Latitude:",
-            next_station["latitude"]
-        )
+    #     print(
+    #         "Latitude:",
+    #         next_station["latitude"]
+    #     )
 
-        print(
-            "Longitude:",
-            next_station["longitude"]
-        )
+    #     print(
+    #         "Longitude:",
+    #         next_station["longitude"]
+    #     )
 
-        print(
-            "Scheduled Arrival:",
-            next_station["scheduled_arrival"]
-        )
+    #     print(
+    #         "Scheduled Arrival:",
+    #         next_station["scheduled_arrival"]
+    #     )
 
-        print(
-            "Scheduled Departure:",
-            next_station["scheduled_departure"]
-        )
+    #     print(
+    #         "Scheduled Departure:",
+    #         next_station["scheduled_departure"]
+    #     )
 
-    else:
+    # else:
 
-        print(
-            "No next station "
-            "(destination reached)."
-        )
+    #     print(
+    #         "No next station "
+    #         "(destination reached)."
+    #     )
 
-    print("\nNEXT 2 STATION")
+    # print("\nNEXT 2 STATION")
 
-    if next2:
+    # if next2:
 
-        print(
-            next2["station_code"],
-            "-",
-            next2["station_name"]
-        )
+    #     print(
+    #         next2["station_code"],
+    #         "-",
+    #         next2["station_name"]
+    #     )
 
-        print(
-            "Sequence:",
-            next2["station_sequence"]
-        )
+    #     print(
+    #         "Sequence:",
+    #         next2["station_sequence"]
+    #     )
 
-        print(
-            "Latitude:",
-            next2["latitude"]
-        )
+    #     print(
+    #         "Latitude:",
+    #         next2["latitude"]
+    #     )
 
-        print(
-            "Longitude:",
-            next2["longitude"]
-        )
+    #     print(
+    #         "Longitude:",
+    #         next2["longitude"]
+    #     )
 
-    else:
+    # else:
 
-        print("No next2 station.")
+    #     print("No next2 station.")
 
-    # --------------------------------------------------------
-    # SUCCESS
-    # --------------------------------------------------------
+    # # --------------------------------------------------------
+    # # SUCCESS
+    # # --------------------------------------------------------
 
-    print("\n" + "=" * 70)
-    print("✅ LIVE DATABASE PIPELINE SUCCESSFUL")
-    print("=" * 70)
+    # print("\n" + "=" * 70)
+    # print("✅ LIVE DATABASE PIPELINE SUCCESSFUL")
+    # print("=" * 70)

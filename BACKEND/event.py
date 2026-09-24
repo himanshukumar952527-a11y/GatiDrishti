@@ -2,11 +2,7 @@
 
 from database_insert import insert_operational_event
 
-
-# ============================================================
 # EVENT NORMALIZATION
-# ============================================================
-
 def normalize_event(event):
     """
     Normalize a RailRadar event into the structure
@@ -66,11 +62,7 @@ def normalize_event(event):
             severity
     }
 
-
-# ============================================================
 # STORE SINGLE EVENT
-# ============================================================
-
 def store_event(
     station_id,
     event
@@ -121,11 +113,7 @@ def store_event(
             "event": normalized
         }
 
-
-# ============================================================
 # STORE MULTIPLE EVENTS
-# ============================================================
-
 def store_events(
     station_id,
     events
@@ -173,11 +161,7 @@ def store_events(
             results
     }
 
-
-# ============================================================
 # BASIC TEST
-# ============================================================
-
 if __name__ == "__main__":
 
     print(

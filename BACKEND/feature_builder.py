@@ -1,10 +1,7 @@
 import numpy as np
 import pandas as pd
 
-
-# ============================================================
 # WEATHER SCORE
-# ============================================================
 
 def calculate_weather_score(
     precipitation,
@@ -60,22 +57,13 @@ def calculate_weather_score(
     )
 
     return score
-
-
-# ============================================================
 # FEATURE BUILDER
-# ============================================================
-
 def build_features(row):
     """
     Convert one raw train/station record into
     the exact 27 features required by CatBoost.
     """
-
-    # --------------------------------------------------------
     # 1. CURRENT WEATHER SCORE
-    # --------------------------------------------------------
-
     weather_score = calculate_weather_score(
         row["precipitation"],
         row["visibility"],
@@ -85,11 +73,7 @@ def build_features(row):
         row["wind_speed_10m"]
     )
 
-
-    # --------------------------------------------------------
     # 2. NEXT-STATION WEATHER SCORE
-    # --------------------------------------------------------
-
     next_weather_score = calculate_weather_score(
         row["next_precipitation"],
         row["next_visibility"],
@@ -98,12 +82,7 @@ def build_features(row):
         row["next_cloud_cover"],
         row["next_wind_speed_10m"]
     )
-
-
-    # --------------------------------------------------------
     # 3. WEATHER INTERACTION FEATURES
-    # --------------------------------------------------------
-
     weather_distance = (
         weather_score *
         row["distance"]
@@ -123,12 +102,7 @@ def build_features(row):
         next_weather_score *
         row["avg_speed"]
     )
-
-
-    # --------------------------------------------------------
     # 4. EXACT 27 MODEL FEATURES
-    # --------------------------------------------------------
-
     features = {
 
         "arr_delay":

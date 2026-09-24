@@ -11,19 +11,12 @@ from redis_manager import (
 )
 
 
-# ============================================================
-# REDIS
-# ============================================================
 
+# REDIS
 CONGESTION_KEY_PREFIX = (
     "gatidrishti:congestion"
 )
-
-
-# ============================================================
 # HEADWAY
-# ============================================================
-
 def calculate_headway(
     target_sequence,
     other_sequence
@@ -45,11 +38,7 @@ def calculate_headway(
         other_sequence -
         target_sequence
     )
-
-
-# ============================================================
 # CONGESTION CALCULATION
-# ============================================================
 
 def calculate_congestion(
     target_train_sequence,
@@ -90,17 +79,11 @@ def calculate_congestion(
             train
         )
 
-    # --------------------------------------------------------
     # ACTIVE TRAIN COUNT
-    # --------------------------------------------------------
-
     active_train_count = len(
         active_trains
     )
-
-    # --------------------------------------------------------
     # AHEAD / BEHIND
-    # --------------------------------------------------------
 
     trains_ahead = 0
     trains_behind = 0
@@ -133,9 +116,7 @@ def calculate_congestion(
                     headway
                 )
 
-    # --------------------------------------------------------
     # AVG HEADWAY
-    # --------------------------------------------------------
 
     if headways:
 
@@ -148,9 +129,7 @@ def calculate_congestion(
 
         avg_headway = 0.0
 
-    # --------------------------------------------------------
     # FINAL FEATURES
-    # --------------------------------------------------------
 
     congestion = {
 
@@ -178,9 +157,7 @@ def calculate_congestion(
     }
 
 
-# ============================================================
 # CONGESTION LEVEL
-# ============================================================
 
 def determine_congestion_level(
     active_train_count,
@@ -208,9 +185,7 @@ def determine_congestion_level(
     return "SEVERE"
 
 
-# ============================================================
 # STORE IN REDIS
-# ============================================================
 
 def store_congestion_redis(
     train_number,
@@ -238,10 +213,7 @@ def store_congestion_redis(
         "data": congestion_data
     }
 
-
-# ============================================================
 # STORE IN SUPABASE
-# ============================================================
 
 def store_congestion_database(
     station_id,
@@ -297,9 +269,7 @@ def store_congestion_database(
         }
 
 
-# ============================================================
 # COMPLETE CONGESTION PIPELINE
-# ============================================================
 
 def process_congestion(
     train_number,
@@ -334,9 +304,7 @@ def process_congestion(
         result["congestion"]
     )
 
-    # --------------------------------------------------------
     # REDIS
-    # --------------------------------------------------------
 
     redis_result = store_congestion_redis(
         train_number=train_number,
@@ -344,9 +312,7 @@ def process_congestion(
         expiry_seconds=expiry_seconds
     )
 
-    # --------------------------------------------------------
     # DATABASE
-    # --------------------------------------------------------
 
     database_result = (
         store_congestion_database(
@@ -355,9 +321,7 @@ def process_congestion(
         )
     )
 
-    # --------------------------------------------------------
     # FINAL
-    # --------------------------------------------------------
 
     return {
 
@@ -375,10 +339,7 @@ def process_congestion(
             database_result
     }
 
-
-# ============================================================
 # BASIC TEST
-# ============================================================
 
 if __name__ == "__main__":
 

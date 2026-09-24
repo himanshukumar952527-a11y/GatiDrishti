@@ -26,6 +26,78 @@
   <!-- Main CSS -->
   <link rel="stylesheet" href="css/style.css" />
 
+  <!--
+    Coach Position (real / RailRadar-backed) - minimal additions.
+    Everything else in the real Coach Position UI reuses existing
+    classes already defined in css/style.css (coach-position-card,
+    coach-diagram-scroll, coach-unit, coach-legend, coach-note,
+    etc.). Only these two pieces are new, so they're scoped here
+    instead of touching the main stylesheet. Feel free to move
+    this block into css/style.css later.
+  -->
+  <style>
+
+    .coach-station-picker {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 14px 0 18px;
+    }
+
+    .coach-station-picker label {
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0.75;
+    }
+
+    .coach-station-picker select {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(127, 127, 127, 0.35);
+      background: rgba(127, 127, 127, 0.08);
+      color: inherit;
+      cursor: pointer;
+      max-width: 100%;
+    }
+
+    .coach-station-picker select:focus {
+      outline: 2px solid rgba(37, 99, 235, 0.5);
+      outline-offset: 1px;
+    }
+
+    .coach-live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.14);
+      color: #0f9d63;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      white-space: nowrap;
+    }
+
+    [data-theme="dark"] .coach-station-picker select {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    [data-theme="dark"] .coach-live-badge {
+      background: rgba(16, 185, 129, 0.18);
+      color: #34d399;
+      border-color: rgba(52, 211, 153, 0.4);
+    }
+
+  </style>
+
 </head>
 
 
@@ -1062,8 +1134,11 @@
   <!-- ================= SCRIPTS ================= -->
 
   <script src="js/i18n.js"></script>
-
+  <!-- <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script> -->
   <script src="js/script.js"></script>
+  <script src="js/map.js"></script>
+  <script  src ="js/others.js"></script>
+  
 
 
 </body>
