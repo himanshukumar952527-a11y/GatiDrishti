@@ -26,6 +26,9 @@
   <!-- Main CSS -->
   <link rel="stylesheet" href="css/style.css" />
 
+  <!-- Welcome popup styles -->
+  <link rel="stylesheet" href="css/note.css" />
+
   <!--
     Coach Position (real / RailRadar-backed) - minimal additions.
     Everything else in the real Coach Position UI reuses existing
@@ -102,6 +105,51 @@
 
 
 <body data-theme="light">
+
+  <!-- ================= WELCOME POPUP (shows as soon as page opens) ================= -->
+
+  <div class="welcome-overlay" id="welcomeOverlay">
+
+    <div
+      class="welcome-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="welcomeTitle"
+      aria-describedby="welcomeDesc"
+    >
+
+      <h2 class="welcome-title" id="welcomeTitle">Welcome to GatiDrishti</h2>
+
+      <div id="welcomeDesc">
+        <p class="welcome-note">Note: This system is currently working for</p>
+        <p class="welcome-train">12951 – Tejas Rajdhani Express</p>
+        <p class="welcome-thanks">Thank you for using GatiDrishti.</p>
+      </div>
+
+      <button type="button" class="welcome-btn" id="welcomeContinueBtn">Continue</button>
+
+    </div>
+
+  </div>
+
+  <script>
+    (function () {
+      var overlay = document.getElementById('welcomeOverlay');
+      var btn = document.getElementById('welcomeContinueBtn');
+      var prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      btn.focus();
+
+      btn.addEventListener('click', function () {
+        overlay.classList.add('is-closing');
+        setTimeout(function () {
+          overlay.remove();
+          document.body.style.overflow = prev;
+        }, 230);
+      });
+    })();
+  </script>
+
 
   <!-- ================= HEADER ================= -->
 

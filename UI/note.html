@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Welcome | GatiDrishti</title>
+
+  <!-- Fonts (same as index.html) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Main theme (provides --surface, --text-dark, --ir-red, etc.) -->
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Welcome popup styles -->
+  <link rel="stylesheet" href="css/note.css" />
+</head>
+
+<body data-theme="light">
+
+  <!-- ================= WELCOME POPUP ================= -->
+
+  <div class="welcome-overlay" id="welcomeOverlay">
+
+    <div
+      class="welcome-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="welcomeTitle"
+      aria-describedby="welcomeDesc"
+    >
+
+      <h2 class="welcome-title" id="welcomeTitle">Welcome to GatiDrishti</h2>
+
+      <div id="welcomeDesc">
+        <p class="welcome-note">Note: This system is currently working for</p>
+        <p class="welcome-train">12951 – Tejas Rajdhani Express</p>
+        <p class="welcome-thanks">Thank you for using GatiDrishti.</p>
+      </div>
+
+      <button type="button" class="welcome-btn" id="welcomeContinueBtn">Continue</button>
+
+    </div>
+
+  </div>
+
+  <script>
+    (function () {
+      // Follow the device theme (light / dark)
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.setAttribute('data-theme', 'dark');
+      }
+
+      var overlay = document.getElementById('welcomeOverlay');
+      var btn = document.getElementById('welcomeContinueBtn');
+      btn.focus();
+
+      // Continue: fade the popup out, then go to the main page
+      btn.addEventListener('click', function () {
+        overlay.classList.add('is-closing');
+        setTimeout(function () {
+          window.location.href = 'index.html';
+        }, 230);
+      });
+    })();
+  </script>
+
+</body>
+
+</html>

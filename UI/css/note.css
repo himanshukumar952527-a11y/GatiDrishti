@@ -1,0 +1,168 @@
+/* =========================================================
+   GatiDrishti - Welcome Note popup (note.html)
+   Uses the theme variables from css/style.css, with
+   fallbacks so it still looks right if they are missing.
+   ========================================================= */
+
+.welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(10, 18, 35, 0.55);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  animation: welcomeFade 0.3s ease-out both;
+}
+
+.welcome-overlay.is-closing {
+  animation: welcomeFadeOut 0.22s ease-in both;
+  pointer-events: none;
+}
+
+.welcome-modal {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 34px 30px 28px;
+  text-align: center;
+  background: var(--surface, #ffffff);
+  color: var(--text-dark, #1a2233);
+  border-radius: 18px;
+  border-top: 4px solid var(--ir-red, #c8102e);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  font-family: 'Inter', sans-serif;
+  animation: welcomePop 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.welcome-overlay.is-closing .welcome-modal {
+  animation: welcomePopOut 0.22s ease-in both;
+}
+
+.welcome-title {
+  margin: 0 0 16px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ir-blue, #0b3d91);
+}
+
+.welcome-note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted, #5b6577);
+}
+
+.welcome-train {
+  margin: 10px 0 18px;
+  padding: 12px 16px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ir-red, #c8102e);
+  background: rgba(200, 16, 46, 0.08);
+  border: 1px solid rgba(200, 16, 46, 0.25);
+  border-radius: 12px;
+}
+
+.welcome-thanks {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--text-muted, #5b6577);
+}
+
+.welcome-btn {
+  display: inline-block;
+  min-width: 160px;
+  padding: 12px 32px;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: 'Poppins', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--ir-red, #c8102e);
+  box-shadow: 0 6px 16px rgba(200, 16, 46, 0.3);
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.welcome-btn:hover {
+  background: var(--ir-red-dark, #9d0c24);
+  transform: translateY(-1px);
+}
+
+.welcome-btn:active {
+  transform: translateY(0);
+}
+
+.welcome-btn:focus-visible {
+  outline: 3px solid var(--ir-blue, #0b3d91);
+  outline-offset: 3px;
+}
+
+/* ---------- Dark theme ---------- */
+
+[data-theme="dark"] .welcome-overlay {
+  background: rgba(0, 0, 0, 0.68);
+}
+
+[data-theme="dark"] .welcome-modal {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 4px solid var(--ir-red, #c8102e);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="dark"] .welcome-title {
+  color: var(--text-dark, #eef2fb);
+}
+
+[data-theme="dark"] .welcome-train {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* ---------- Animations ---------- */
+
+@keyframes welcomeFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes welcomeFadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes welcomePop {
+  from { opacity: 0; transform: translateY(18px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes welcomePopOut {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.96); }
+}
+
+/* ---------- Mobile ---------- */
+
+@media (max-width: 480px) {
+  .welcome-modal { padding: 28px 20px 22px; border-radius: 16px; }
+  .welcome-title { font-size: 22px; }
+  .welcome-train { font-size: 15px; }
+  .welcome-btn   { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-overlay,
+  .welcome-modal { animation-duration: 0.01s; }
+}
